@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWeb3 } from '../context/Web3Context';
 import { CinematicHero } from '../components/CinematicHero';
-import { BookOpen, Activity, AlertCircle, Send, CheckCircle2, ChevronRight, RefreshCw } from 'lucide-react';
+import { BookOpen, Activity, AlertCircle, Send, CheckCircle2, RefreshCw, ArrowRight } from 'lucide-react';
 
 interface HomeProps {
   setActivePage: (page: string) => void;
@@ -61,10 +61,10 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
   return (
     <div className="w-full">
       {/* SECTION 1: HERO */}
-      <CinematicHero 
+      <CinematicHero
         onDonateClick={() => {
           document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
-        }} 
+        }}
         onGetStartedClick={() => {
           if (isWalletConnected) {
             if (currentRole === 'admin') setActivePage('admin-dashboard');
@@ -77,7 +77,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       />
 
       {/* SECTION 2: OUR GOAL */}
-      <section id="goal" className="py-20 px-6 md:px-12 bg-alabaster border-y border-slate-100 overflow-hidden">
+      <section id="goal" className="py-28 px-6 md:px-12 bg-alabaster border-y border-slate-100 overflow-hidden">
         <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-12 items-center">
 
           <motion.div
@@ -115,7 +115,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       </section>
 
       {/* SECTION 3: ABOUT US */}
-      <section id="about" className="py-20 px-6 md:px-12 bg-white overflow-hidden">
+      <section id="about" className="py-28 px-6 md:px-12 bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col gap-16">
           <div className="text-center flex flex-col items-center gap-3">
             <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-milestone-green">
@@ -204,7 +204,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       </section>
 
       {/* ACTIVE CAMPAIGNS HUB */}
-      <section id="campaigns" className="py-24 px-6 md:px-12 bg-alabaster border-y border-slate-100 overflow-hidden">
+      <section id="campaigns" className="py-28 px-6 md:px-12 bg-alabaster border-y border-slate-100 overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col gap-12">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="flex flex-col gap-2">
@@ -220,8 +220,8 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
             </p>
           </div>
 
-          {/* Campaign cards grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-8">
+          {/* Campaign cards grid — 3-column layout */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {campaigns.map((campaign, idx) => {
               const percentage = Math.min(100, Math.round((campaign.raised / campaign.target) * 100));
               return (
@@ -230,11 +230,11 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-50px' }}
-                  transition={{ type: 'spring', stiffness: 80, damping: 15, delay: idx * 0.15 }}
-                  className="group relative bg-white rounded-3xl border border-slate-100 hover:border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col"
+                  transition={{ type: 'spring', stiffness: 80, damping: 15, delay: idx * 0.12 }}
+                  className="group relative bg-white rounded-2xl border border-slate-100 hover:border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col"
                 >
                   {/* Image showcase */}
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
                     <img
                       src={campaign.image}
                       alt={campaign.name}
@@ -242,37 +242,29 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                     />
 
                     {/* Category badge */}
-                    <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-white/95 border border-white/60 shadow-sm backdrop-blur-sm flex items-center gap-1.5">
+                    <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-white/95 border border-white/60 shadow-sm backdrop-blur-sm flex items-center gap-1.5">
                       {getCategoryIcon(campaign.category)}
-                      <span className="text-[9px] uppercase font-bold tracking-wider text-slate-700">
+                      <span className="text-[10px] font-bold tracking-wide text-slate-700">
                         {campaign.category}
                       </span>
-                    </div>
-
-                    {/* NGO Tag */}
-                    <div className="absolute bottom-4 left-4 px-3 py-1 rounded-lg bg-slate-950/70 text-white text-[10px] font-semibold backdrop-blur-sm">
-                      NGO: {campaign.ngoName}
                     </div>
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-6 md:p-8 flex flex-col flex-grow gap-5">
-                    <div className="flex flex-col gap-2">
-                      <h3 className="font-heading font-extrabold text-xl md:text-2xl text-slate-900 group-hover:text-trust-blue transition-colors duration-200">
-                        {campaign.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">
-                        {campaign.description}
-                      </p>
-                    </div>
+                  <div className="p-5 flex flex-col flex-grow gap-3">
+                    <h3 className="font-heading font-extrabold text-base md:text-lg text-slate-900 group-hover:text-trust-blue transition-colors duration-200 leading-snug">
+                      {campaign.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                      {campaign.description}
+                    </p>
 
-                    {/* Progress Slider bar */}
-                    <div className="flex flex-col gap-2 mt-auto">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-500">Fund Progress</span>
-                        <span className="text-trust-blue">{percentage}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
+                    {/* Bottom row: raised + progress bar + Donate Now */}
+                    <div className="flex items-center gap-3 mt-auto pt-2">
+                      <span className="text-xs font-bold text-slate-800 whitespace-nowrap">
+                        ${campaign.raised.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">raised</span>
+                      </span>
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: `${percentage}%` }}
@@ -281,20 +273,14 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                           className="h-full bg-gradient-to-r from-trust-blue to-cyan-500 rounded-full"
                         />
                       </div>
-                      <div className="flex justify-between text-xs mt-1">
-                        <span className="font-bold text-slate-800">${campaign.raised.toLocaleString()} <span className="text-[10px] font-normal text-slate-500">raised</span></span>
-                        <span className="font-medium text-slate-500">Target: ${campaign.target.toLocaleString()}</span>
-                      </div>
+                      <button
+                        onClick={() => handleDonateNow(campaign.id)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full font-heading text-[11px] font-bold text-white bg-slate-900 hover:bg-trust-blue shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <span>Donate Now</span>
+                        <ArrowRight size={12} />
+                      </button>
                     </div>
-
-                    {/* Donate Now Button */}
-                    <button
-                      onClick={() => handleDonateNow(campaign.id)}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-heading text-xs font-bold text-slate-950 border border-slate-200 bg-white hover:bg-slate-950 hover:text-white hover:border-slate-950 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 cursor-pointer"
-                    >
-                      <span>Donate Now</span>
-                      <ChevronRight size={14} />
-                    </button>
                   </div>
                 </motion.div>
               );
@@ -304,7 +290,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       </section>
 
       {/* SECTION 4: CONTACT US */}
-      <section id="contact" className="py-24 px-6 md:px-12 bg-white overflow-hidden">
+      <section id="contact" className="py-28 px-6 md:px-12 bg-white overflow-hidden">
         <div className="max-w-4xl mx-auto flex flex-col gap-12">
           <div className="text-center flex flex-col items-center gap-3">
             <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-trust-blue">
