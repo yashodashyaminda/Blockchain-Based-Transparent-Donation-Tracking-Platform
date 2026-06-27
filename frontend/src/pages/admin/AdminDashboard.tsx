@@ -1,0 +1,728 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useWeb3 } from '../../context/Web3Context';
+import type { Campaign, Milestone } from '../../context/Web3Context';
+import { ShieldCheck, Users, Wallet, BarChart3, Edit3, Trash2, CheckCircle2, FileSearch, ArrowRight, ShieldAlert, Plus, AlertCircle, RefreshCw } from 'lucide-react';
+
+export const AdminDashboard: React.FC = () => {
+  const { ngos, verifyNGO, campaigns, addCampaign, deleteCampaign, editCampaign, validateMilestoneProof, transactions } = useWeb3();
+  const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'crud' | 'metrics'>('approvals');
+
+  // NGO Review states
+  const [selectedNgoId, setSelectedNgoId] = useState<string>('');
+  
+  // Milestone release states
+  const [verifyingMilestoneId, setVerifyingMilestoneId] = useState<string>('');
+  const [verifyingCampaignId, setVerifyingCampaignId] = useState<string>('');
+  const [isContractExecuting, setIsContractExecuting] = useState(false);
+  const [contractSuccess, setContractSuccess] = useState(false);
+
+  // CRUD Campaign states
+  const [isAddingCampaign, setIsAddingCampaign] = useState(false);
+  const [newProjName, setNewProjName] = useState('');
+  const [newProjDesc, setNewProjDesc] = useState('');
+  const [newProjTarget, setNewProjTarget] = useState('');
+  const [newProjCat, setNewProjCat] = useState<Campaign['category']>('Education');
+  
+  // Editing Campaign states
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editTarget, setEditTarget] = useState(0);
+  const [editCat, setEditCat] = useState<Campaign['category']>('Education');
+
+  // Simulated metrics counters
+  const [processedFunds, setProcessedFunds] = useState(0);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [donationCount, setDonationCount] = useState(0);
+
+  useEffect(() => {
+    // Sum total target/raises for metrics
+    const totalRaised = campaigns.reduce((acc, c) => acc + c.raised, 0) + 12000; // base offset
+    const totalUsers = ngos.length + 42; // base offset
+    const totalTx = transactions.length + 128; // base offset
+
+    // Animate counters
+    let rStart = 0;
+    const rInterval = setInterval(() => {
+      rStart += Math.ceil(totalRaised / 20);
+      if (rStart >= totalRaised) {
+        setProcessedFunds(totalRaised);
+        clearInterval(rInterval);
+      } else {
+        setProcessedFunds(rStart);
+      }
+    }, 40);
+
+    let uStart = 0;
+    const uInterval = setInterval(() => {
+      uStart += Math.ceil(totalUsers / 15);
+      if (uStart >= totalUsers) {
+        setActiveUsers(totalUsers);
+        clearInterval(uInterval);
+      } else {
+        setActiveUsers(uStart);
+      }
+    }, 40);
+
+    let tStart = 0;
+    const tInterval = setInterval(() => {
+      tStart += Math.ceil(totalTx / 15);
+      if (tStart >= totalTx) {
+        setDonationCount(totalTx);
+        clearInterval(tInterval);
+      } else {
+        setDonationCount(tStart);
+      }
+    }, 40);
+
+    return () => {
+      clearInterval(rInterval);
+      clearInterval(uInterval);
+      clearInterval(tInterval);
+    };
+  }, [campaigns, ngos, transactions]);
+
+  // Handle NGO approvals
+  const pendingNgos = ngos.filter(n => !n.isVerified);
+  const selectedNgo = ngos.find(n => n.id === selectedNgoId) || pendingNgos[0];
+
+  useEffect(() => {
+    if (pendingNgos.length > 0 && !selectedNgoId) {
+      setSelectedNgoId(pendingNgos[0].id);
+    }
+  }, [pendingNgos, selectedNgoId]);
+
+  const handleNgoVerification = (id: string, approve: boolean) => {
+    verifyNGO(id, approve);
+    setSelectedNgoId('');
+  };
+
+  // Find milestones that are submitted (status === Approved) but not yet released
+  const pendingMilestoneReleases: Array<{ campaign: Campaign; milestone: Milestone }> = [];
+  campaigns.forEach(c => {
+    c.milestones.forEach(m => {
+      if (m.status === 'Approved') {
+        pendingMilestoneReleases.push({ campaign: c, milestone: m });
+      }
+    });
+  });
+
+  // Verify milestone proof & release funds smart contract execution
+  const handleVerifyMilestone = async (campaignId: string, milestoneId: string) => {
+    setVerifyingCampaignId(campaignId);
+    setVerifyingMilestoneId(milestoneId);
+    setIsContractExecuting(true);
+    
+    // Trigger simulated contract validation
+    await validateMilestoneProof(campaignId, milestoneId);
+    
+    setIsContractExecuting(false);
+    setContractSuccess(true);
+    
+    setTimeout(() => {
+      setContractSuccess(false);
+      setVerifyingCampaignId('');
+      setVerifyingMilestoneId('');
+    }, 3000);
+  };
+
+  // Add campaign submit
+  const handleAddCampaignSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjName || !newProjDesc || !newProjTarget) return;
+
+    addCampaign(
+      newProjName,
+      newProjCat,
+      newProjDesc,
+      '/assets/images/4.png',
+      parseFloat(newProjTarget)
+    );
+
+    setNewProjName('');
+    setNewProjDesc('');
+    setNewProjTarget('');
+    setNewProjCat('Education');
+    setIsAddingCampaign(false);
+  };
+
+  // Inline editing save handler
+  const handleSaveEdit = (id: string) => {
+    editCampaign(id, {
+      name: editName,
+      target: editTarget,
+      category: editCat
+    });
+    setEditingCampaignId(null);
+  };
+
+  // Set initial editing states
+  const startEditing = (c: Campaign) => {
+    setEditingCampaignId(c.id);
+    setEditName(c.name);
+    setEditTarget(c.target);
+    setEditCat(c.category);
+  };
+
+  // CSS categorical calculations
+  const totalCampaigns = campaigns.length || 1;
+  const countCat = (cat: Campaign['category']) => campaigns.filter(c => c.category === cat).length;
+  const catPercentages = {
+    Education: Math.round((countCat('Education') / totalCampaigns) * 100),
+    Health: Math.round((countCat('Health') / totalCampaigns) * 100),
+    DisasterRelief: Math.round((countCat('Disaster Relief') / totalCampaigns) * 100),
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 pt-28 pb-16 px-6 md:px-12 relative">
+      {/* Background decoration */}
+      <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none">
+        <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] rounded-full bg-purple-100 blur-[100px]" />
+        <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full bg-trust-blue-light blur-[100px]" />
+      </div>
+
+      <div className="max-w-7xl mx-auto flex flex-col gap-8 relative z-10">
+        
+        {/* Header Console */}
+        <div className="cinematic-glass rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-md">
+              <ShieldCheck size={28} className="text-purple-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-heading font-extrabold text-xl md:text-2xl text-slate-900">
+                  Control Tower Suite
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-600 border border-purple-200 px-2.5 py-1 rounded-full">
+                  System Administrator
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Role: Smart Contract Auditor • Protocol Address: <span className="font-mono text-slate-600">0x00AAd...C1275</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Sub Navigation */}
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
+            <button
+              onClick={() => setActiveSubTab('approvals')}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                activeSubTab === 'approvals' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Audits & Approvals
+            </button>
+            <button
+              onClick={() => setActiveSubTab('crud')}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                activeSubTab === 'crud' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Campaign Manager
+            </button>
+            <button
+              onClick={() => setActiveSubTab('metrics')}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                activeSubTab === 'metrics' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Revenue Metrics
+            </button>
+          </div>
+        </div>
+
+        {/* WORKSPACE SWITCHER AREA */}
+        <div className="min-h-[480px]">
+          <AnimatePresence mode="wait">
+            
+            {/* SUB TAB 1: AUDITS & APPROVALS (Split desks) */}
+            {activeSubTab === 'approvals' && (
+              <motion.div
+                key="approvals-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="grid lg:grid-cols-12 gap-8"
+              >
+                {/* Desk A: NGO Verification center Split-Pane */}
+                <div className="lg:col-span-6 bg-white rounded-3xl border border-slate-100 p-6 flex flex-col gap-6 shadow-sm">
+                  <div>
+                    <h3 className="font-heading font-extrabold text-base text-slate-900 flex items-center gap-2">
+                      <FileSearch size={18} className="text-purple-500" />
+                      <span>NGO Status Verification Desk</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">Review legal documentation PDFs submitted by registering corporate non-profits.</p>
+                  </div>
+
+                  {pendingNgos.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                      <CheckCircle2 size={20} className="text-emerald-500" />
+                      <span>All registered NGO documents have been audited. No pending items.</span>
+                    </div>
+                  ) : (
+                    <div className="grid sm:grid-cols-12 gap-6 border-t border-slate-100 pt-4">
+                      {/* Left list pane */}
+                      <div className="sm:col-span-5 flex flex-col gap-2 border-r border-slate-50 pr-2">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Queue List</span>
+                        {pendingNgos.map(n => (
+                          <button
+                            key={n.id}
+                            onClick={() => setSelectedNgoId(n.id)}
+                            className={`w-full text-left p-3 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${
+                              selectedNgo?.id === n.id
+                                ? 'bg-purple-50/50 border-purple-200 text-purple-600 font-bold'
+                                : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            <span className="block truncate">{n.name}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Right split action pane document viewer */}
+                      {selectedNgo && (
+                        <div className="sm:col-span-7 flex flex-col gap-4">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Audit Document Viewer</span>
+                          
+                          {/* Mock PDF document canvas display */}
+                          <div className="relative aspect-[4/3] w-full border border-slate-200 rounded-2xl overflow-hidden bg-slate-100 flex flex-col items-center justify-center shadow-inner group">
+                            <img 
+                              src={selectedNgo.documentUrl} 
+                              alt="Legal document PDF canvas" 
+                              className="w-full h-full object-cover opacity-85 group-hover:scale-[1.02] transition-transform duration-300" 
+                            />
+                            <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center pointer-events-none">
+                              <span className="px-3 py-1.5 rounded-lg bg-slate-900/75 text-white font-mono text-[9px] uppercase tracking-wider font-bold shadow-md">
+                                PDF DOCUMENT INDEXED
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-1.5 text-xs">
+                            <span className="font-bold text-slate-800">{selectedNgo.name}</span>
+                            <span className="text-[10px] text-slate-500">Reg ID: {selectedNgo.id}</span>
+                            <span className="text-[9px] text-slate-400 font-mono select-all truncate mt-0.5">Wallet: {selectedNgo.wallet}</span>
+                          </div>
+
+                          <div className="flex gap-3 mt-1">
+                            <button
+                              onClick={() => handleNgoVerification(selectedNgo.id, true)}
+                              className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-950 hover:bg-emerald-600 transition-colors duration-200 cursor-pointer shadow-sm text-center"
+                            >
+                              Approve Verification
+                            </button>
+                            <button
+                              onClick={() => handleNgoVerification(selectedNgo.id, false)}
+                              className="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-500 hover:border-red-200 hover:text-red-500 hover:bg-red-50/50 transition-colors duration-200 cursor-pointer text-center"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Desk B: Milestone Proof Validation Desk */}
+                <div className="lg:col-span-6 bg-white rounded-3xl border border-slate-100 p-6 flex flex-col gap-6 shadow-sm">
+                  <div>
+                    <h3 className="font-heading font-extrabold text-base text-slate-900 flex items-center gap-2">
+                      <ShieldAlert size={18} className="text-amber-500" />
+                      <span>Milestone Proof Validation Desk</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">Verify evidence submitted by active NGOs and trigger smart contract payouts.</p>
+                  </div>
+
+                  {pendingMilestoneReleases.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center gap-1.5 border-dashed">
+                      <AlertCircle size={20} className="text-slate-400" />
+                      <span>No active milestone payout claims submitted by verified NGOs.</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 overflow-y-auto max-h-[360px]">
+                      {pendingMilestoneReleases.map(({ campaign, milestone }) => {
+                        const isExecutingThis = verifyingMilestoneId === milestone.id && verifyingCampaignId === campaign.id;
+                        
+                        return (
+                          <div key={milestone.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col gap-4">
+                            <div className="flex justify-between items-start gap-4">
+                              <div>
+                                <span className="text-[9px] uppercase font-extrabold text-amber-600 tracking-wider">Fund Claim Submitted</span>
+                                <h4 className="font-heading font-bold text-sm text-slate-950 mt-0.5">{campaign.name}</h4>
+                                <p className="text-[10px] font-semibold text-slate-600 mt-1">Phase: {milestone.title}</p>
+                              </div>
+                              <span className="font-heading font-extrabold text-sm text-slate-800">${milestone.amount.toLocaleString()}</span>
+                            </div>
+
+                            <div className="text-xs bg-white border border-slate-100 p-3.5 rounded-xl leading-relaxed text-slate-500">
+                              <span className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">NGO Evidence Report</span>
+                              {milestone.proofText}
+                              
+                              {milestone.proofDoc && (
+                                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                                  <span className="font-bold text-slate-700">Receipt: {milestone.proofDoc}</span>
+                                  <a
+                                    href="/assets/images/3.png"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-trust-blue hover:underline flex items-center gap-1"
+                                  >
+                                    <span>View File</span>
+                                    <ArrowRight size={10} />
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Trigger smart contract button */}
+                            <button
+                              onClick={() => handleVerifyMilestone(campaign.id, milestone.id)}
+                              disabled={isExecutingThis || isContractExecuting}
+                              className="w-full py-3 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-emerald-600 disabled:bg-slate-400 disabled:cursor-not-allowed shadow-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              {isExecutingThis && isContractExecuting ? (
+                                <>
+                                  <RefreshCw size={14} className="animate-spin" />
+                                  <span>Simulating Smart Contract Execution...</span>
+                                </>
+                              ) : isExecutingThis && contractSuccess ? (
+                                <>
+                                  <CheckCircle2 size={14} className="text-emerald-300" />
+                                  <span>Milestone Funds Payout Confirmed</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>Verify Proof & Release Milestone Funds</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+              </motion.div>
+            )}
+
+            {/* SUB TAB 2: CAMPAIGN CRUD MANAGER GRID */}
+            {activeSubTab === 'crud' && (
+              <motion.div
+                key="crud-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm"
+              >
+                <div className="flex justify-between items-center border-b border-slate-50 pb-4">
+                  <div>
+                    <h3 className="font-heading font-extrabold text-sm text-slate-900">Campaign Registry CRUD Manager</h3>
+                    <p className="text-[10px] text-slate-400 mt-1">Global administrative workspace enabling master controls over campaign listings.</p>
+                  </div>
+                  <button
+                    onClick={() => setIsAddingCampaign(!isAddingCampaign)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-trust-blue text-white text-xs font-bold transition-all duration-200 cursor-pointer shadow-sm"
+                  >
+                    <Plus size={14} />
+                    <span>{isAddingCampaign ? 'Collapse Form' : 'Add Campaign Row'}</span>
+                  </button>
+                </div>
+
+                {/* Add Campaign Expandable form */}
+                <AnimatePresence>
+                  {isAddingCampaign && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="p-5 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden"
+                    >
+                      <form onSubmit={handleAddCampaignSubmit} className="flex flex-col gap-4">
+                        <div className="grid md:grid-cols-3 gap-4">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Project Name</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Solar Panels School"
+                              value={newProjName}
+                              onChange={(e) => setNewProjName(e.target.value)}
+                              className="px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Target Fund ($)</label>
+                            <input
+                              type="number"
+                              required
+                              placeholder="10000"
+                              value={newProjTarget}
+                              onChange={(e) => setNewProjTarget(e.target.value)}
+                              className="px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Category</label>
+                            <select
+                              value={newProjCat}
+                              onChange={(e) => setNewProjCat(e.target.value as Campaign['category'])}
+                              className="px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+                            >
+                              <option value="Education">Education</option>
+                              <option value="Health">Health</option>
+                              <option value="Disaster Relief">Disaster Relief</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Project Description</label>
+                          <textarea
+                            required
+                            rows={2}
+                            placeholder="Detailed explanation of the campaign goals..."
+                            value={newProjDesc}
+                            onChange={(e) => setNewProjDesc(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white resize-none"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-trust-blue text-white text-xs font-bold w-fit cursor-pointer transition-colors duration-200"
+                        >
+                          Submit Campaign
+                        </button>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* CRUD list grid */}
+                <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                  <table className="w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                        <th className="px-5 py-4">Project Details</th>
+                        <th className="px-5 py-4">Category</th>
+                        <th className="px-5 py-4">Financial Target</th>
+                        <th className="px-5 py-4 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {campaigns.map(c => {
+                        const isEditing = editingCampaignId === c.id;
+                        return (
+                          <tr key={c.id} className="hover:bg-slate-50/20">
+                            {/* Name details */}
+                            <td className="px-5 py-4">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  className="px-2 py-1 border border-slate-200 rounded text-xs w-full"
+                                />
+                              ) : (
+                                <div>
+                                  <span className="font-bold text-slate-900 block">{c.name}</span>
+                                  <span className="text-[9px] text-slate-400 block mt-0.5">NGO Owner: {c.ngoName} • ID: {c.id}</span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Category */}
+                            <td className="px-5 py-4">
+                              {isEditing ? (
+                                <select
+                                  value={editCat}
+                                  onChange={(e) => setEditCat(e.target.value as Campaign['category'])}
+                                  className="px-2 py-1 border border-slate-200 rounded text-xs bg-white"
+                                >
+                                  <option value="Education">Education</option>
+                                  <option value="Health">Health</option>
+                                  <option value="Disaster Relief">Disaster Relief</option>
+                                </select>
+                              ) : (
+                                <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-medium text-slate-600">
+                                  {c.category}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Financial target */}
+                            <td className="px-5 py-4">
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  value={editTarget}
+                                  onChange={(e) => setEditTarget(parseFloat(e.target.value))}
+                                  className="px-2 py-1 border border-slate-200 rounded text-xs w-[100px]"
+                                />
+                              ) : (
+                                <span className="font-bold text-slate-800">${c.target.toLocaleString()}</span>
+                              )}
+                            </td>
+
+                            {/* CRUD buttons */}
+                            <td className="px-5 py-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleSaveEdit(c.id)}
+                                      className="px-3 py-1 bg-slate-950 text-white rounded text-[10px] font-bold hover:bg-emerald-600 cursor-pointer"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingCampaignId(null)}
+                                      className="px-3 py-1 border border-slate-200 text-slate-500 rounded text-[10px] font-bold hover:bg-slate-50 cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => startEditing(c)}
+                                      className="p-1.5 rounded-lg border border-slate-100 hover:border-slate-200 text-slate-500 hover:text-slate-900 transition-colors duration-200 cursor-pointer bg-white"
+                                      title="Edit campaign data"
+                                    >
+                                      <Edit3 size={12} />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteCampaign(c.id)}
+                                      className="p-1.5 rounded-lg border border-slate-100 hover:border-red-200 text-slate-500 hover:text-red-500 hover:bg-red-50/50 transition-colors duration-200 cursor-pointer bg-white"
+                                      title="Delete campaign"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+
+            {/* SUB TAB 3: REVENUE & AUDITING METRICS */}
+            {activeSubTab === 'metrics' && (
+              <motion.div
+                key="metrics-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="flex flex-col gap-8"
+              >
+                {/* Metrics boxes cards */}
+                <div className="grid sm:grid-cols-3 gap-6">
+                  {/* Processed Funds */}
+                  <div className="bg-white rounded-3xl border border-slate-100 p-6 flex items-center justify-between shadow-sm relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-trust-blue/5 to-transparent pointer-events-none" />
+                    <div>
+                      <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Total Processed (USD)</span>
+                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">${processedFunds.toLocaleString()}</span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-trust-blue-light text-trust-blue flex items-center justify-center shadow-sm">
+                      <Wallet size={18} />
+                    </div>
+                  </div>
+
+                  {/* Active Users */}
+                  <div className="bg-white rounded-3xl border border-slate-100 p-6 flex items-center justify-between shadow-sm relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-transparent pointer-events-none" />
+                    <div>
+                      <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Verified Identities</span>
+                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">{activeUsers}</span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm">
+                      <Users size={18} />
+                    </div>
+                  </div>
+
+                  {/* Donation count */}
+                  <div className="bg-white rounded-3xl border border-slate-100 p-6 flex items-center justify-between shadow-sm relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent pointer-events-none" />
+                    <div>
+                      <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Ledger Transaction Rows</span>
+                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">{donationCount}</span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+                      <BarChart3 size={18} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Categorical Distribution Map and Ledger details */}
+                <div className="grid md:grid-cols-12 gap-8">
+                  {/* Category Map Chart */}
+                  <div className="md:col-span-5 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+                    <div>
+                      <h4 className="font-heading font-extrabold text-sm text-slate-900">Campaign Categories Distribution</h4>
+                      <p className="text-[10px] text-slate-400 mt-1">Percentage split of registered active campaigns.</p>
+                    </div>
+
+                    {/* CSS Custom Donut Chart layout */}
+                    <div className="flex flex-col gap-4 mt-2">
+                      {[
+                        { name: "Education", pct: catPercentages.Education || 0, color: "bg-blue-500 text-blue-500" },
+                        { name: "Health", pct: catPercentages.Health || 0, color: "bg-emerald-500 text-emerald-500" },
+                        { name: "Disaster Relief", pct: catPercentages.DisasterRelief || 0, color: "bg-amber-500 text-amber-500" }
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex flex-col gap-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-slate-600 flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${item.color.split(' ')[0]}`} />
+                              <span>{item.name}</span>
+                            </span>
+                            <span className="text-slate-800">{item.pct}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
+                            <div className={`h-full ${item.color.split(' ')[0]}`} style={{ width: `${item.pct}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Blockchain network audit status */}
+                  <div className="md:col-span-7 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm justify-between">
+                    <div>
+                      <h4 className="font-heading font-extrabold text-sm text-slate-900">Etherscan Sync Audit Terminal</h4>
+                      <p className="text-[10px] text-slate-400 mt-1">Real-time status updates verifying client side synchronization with decentralized IPFS blocks.</p>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 font-mono text-[9px] bg-slate-950 text-slate-300 p-4 rounded-2xl shadow-inner min-h-[140px] justify-center leading-relaxed select-all">
+                      <div className="flex items-center gap-2 text-emerald-400">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>[NETWORK] Connected to Hardhat Testnet at 0x7a2...18e0</span>
+                      </div>
+                      <div className="text-slate-500">[LOG] Contract DonationTracker.sol loaded. Ledger states matching: 100%</div>
+                      <div className="text-slate-500">[LOG] Event listener: MilestoneReleased(campaignId, milestoneId, amount, hash) active</div>
+                      <div className="text-slate-500">[LOG] Total transaction rows synced from IPFS gateways: {transactions.length} rows</div>
+                      <div className="text-slate-400">[METADATA] gasUsed: 421098 gwei | blocksAhead: 0</div>
+                    </div>
+                  </div>
+                </div>
+
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
+
+      </div>
+    </div>
+  );
+};
