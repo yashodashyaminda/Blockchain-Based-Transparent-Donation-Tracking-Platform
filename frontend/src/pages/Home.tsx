@@ -77,7 +77,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       />
 
       {/* SECTION 2: OUR GOAL */}
-      <section id="goal" className="py-24 px-6 md:px-12 bg-alabaster border-y border-slate-100 overflow-hidden">
+      <section id="goal" className="py-20 px-6 md:px-12 bg-alabaster border-y border-slate-100 overflow-hidden">
         <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-12 items-center">
 
           <motion.div
@@ -115,7 +115,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       </section>
 
       {/* SECTION 3: ABOUT US */}
-      <section id="about" className="py-24 px-6 md:px-12 bg-white overflow-hidden">
+      <section id="about" className="py-20 px-6 md:px-12 bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col gap-16">
           <div className="text-center flex flex-col items-center gap-3">
             <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-milestone-green">
