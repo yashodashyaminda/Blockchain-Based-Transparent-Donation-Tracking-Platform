@@ -19,7 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
   return (
     <nav className="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-7xl z-50 cinematic-glass rounded-2xl px-6 py-4 flex items-center justify-between transition-all duration-300 hover:shadow-lg">
       {/* Brand logo */}
-      <div 
+      <div
         className="flex items-center gap-2 cursor-pointer group"
         onClick={() => setActivePage('home')}
       >
@@ -38,25 +38,25 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
       {/* Nav Links */}
       <div className="hidden md:flex items-center gap-8 font-sans text-sm font-medium text-slate-600">
-        <button 
+        <button
           onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
           className={`hover:text-trust-blue transition-colors duration-200 cursor-pointer ${activePage === 'home' ? 'text-trust-blue font-semibold' : ''}`}
         >
           Home
         </button>
-        <button 
+        <button
           onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('goal')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
           className="hover:text-trust-blue transition-colors duration-200 cursor-pointer"
         >
           Our Goal
         </button>
-        <button 
+        <button
           onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
           className="hover:text-trust-blue transition-colors duration-200 cursor-pointer"
         >
           About Us
         </button>
-        <button 
+        <button
           onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
           className="hover:text-trust-blue transition-colors duration-200 cursor-pointer"
         >

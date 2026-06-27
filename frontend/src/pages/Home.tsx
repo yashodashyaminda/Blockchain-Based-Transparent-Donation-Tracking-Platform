@@ -61,9 +61,20 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
   return (
     <div className="w-full">
       {/* SECTION 1: HERO */}
-      <CinematicHero onDonateClick={() => {
-        document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
-      }} />
+      <CinematicHero 
+        onDonateClick={() => {
+          document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
+        }} 
+        onGetStartedClick={() => {
+          if (isWalletConnected) {
+            if (currentRole === 'admin') setActivePage('admin-dashboard');
+            else if (currentRole === 'ngo') setActivePage('ngo-dashboard');
+            else setActivePage('donor-dashboard');
+          } else {
+            setActivePage('register');
+          }
+        }}
+      />
 
       {/* SECTION 2: OUR GOAL */}
       <section id="goal" className="py-24 px-6 md:px-12 bg-alabaster border-y border-slate-100 overflow-hidden">

@@ -4,9 +4,10 @@ import { ArrowDown, ArrowRight, ShieldCheck } from 'lucide-react';
 
 interface CinematicHeroProps {
   onDonateClick: () => void;
+  onGetStartedClick: () => void;
 }
 
-export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick }) => {
+export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick, onGetStartedClick }) => {
   // Parallax mouse coordinates
   const [mouseCoords, setMouseCoords] = useState({ x: 0, y: 0 });
   const { scrollY } = useScroll();
@@ -52,7 +53,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick }) =
   };
 
   return (
-    <section id="hero" className="relative h-screen w-full overflow-hidden flex items-center justify-center bg-white">
+    <section id="hero" className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-white pt-28 pb-24">
       {/* Autoplay Fullscreen Video with Parallax Scroll */}
       <motion.div 
         style={{ y: videoY, scale }}
@@ -76,7 +77,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick }) =
       {/* Main Hero Content */}
       <motion.div 
         style={{ opacity }}
-        className="relative z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center gap-6"
+        className="relative z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center gap-6 mt-16 md:mt-24"
       >
         {/* Web3 Anchor Badge */}
         <motion.div
@@ -97,7 +98,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick }) =
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="font-heading font-extrabold text-4xl md:text-7xl lg:text-8xl tracking-tighter leading-none text-slate-900"
+            className="font-heading font-extrabold text-3xl md:text-5xl lg:text-6xl tracking-tighter leading-none text-slate-900"
           >
             {/* Row 1 */}
             <span className="block mb-2 overflow-hidden">
@@ -145,7 +146,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick }) =
           Anchor your kindness on the blockchain. Real-time auditing tracks every dollar from your wallet to local humanitarian milestones.
         </motion.p>
 
-        {/* CTA Section with Mouse Parallax Trigger */}
+        {/* CTA Section with Mouse Parallax Trigger - Side by side buttons */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -154,13 +155,20 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick }) =
             x: mouseCoords.x * 25,
             y: mouseCoords.y * 25,
           }}
-          className="mt-6"
+          className="mt-6 flex flex-row flex-wrap gap-4 justify-center items-center"
         >
           <button
             onClick={onDonateClick}
-            className="flex items-center gap-3 bg-slate-900 hover:bg-trust-blue text-white px-8 py-4 rounded-2xl font-heading font-semibold text-sm shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 glow-blue cursor-pointer"
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-900 px-6 py-3.5 rounded-full font-heading font-bold text-sm shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 cursor-pointer border border-slate-200"
           >
-            <span>Explore Active Campaigns</span>
+            <span>Explore Campaigns</span>
+            <ArrowRight size={16} />
+          </button>
+          <button
+            onClick={onGetStartedClick}
+            className="flex items-center gap-2 bg-slate-950/10 hover:bg-slate-950/20 text-slate-900 px-6 py-3.5 rounded-full border border-slate-900/10 font-heading font-bold text-sm shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 cursor-pointer backdrop-blur-sm"
+          >
+            <span>Get Started</span>
             <ArrowRight size={16} />
           </button>
         </motion.div>
@@ -171,18 +179,18 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick }) =
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.7 }}
         transition={{ delay: 1.8 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer z-10"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer z-10"
         onClick={() => {
           document.getElementById('goal')?.scrollIntoView({ behavior: 'smooth' });
         }}
       >
-        <span className="text-[9px] uppercase font-bold tracking-[0.3em] text-slate-500">
-          Scroll to explore
+        <span className="text-[9px] uppercase font-bold tracking-[0.25em] text-slate-500">
+          SCROLL
         </span>
         <motion.div
-          animate={{ y: [0, 8, 0] }}
+          animate={{ y: [0, 5, 0] }}
           transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-          className="w-8 h-8 rounded-full bg-slate-100/80 border border-slate-200/50 flex items-center justify-center text-slate-600 shadow-sm"
+          className="text-slate-600 flex items-center justify-center"
         >
           <ArrowDown size={14} />
         </motion.div>
