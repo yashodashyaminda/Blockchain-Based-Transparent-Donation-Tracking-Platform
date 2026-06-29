@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../context/Web3Context';
 import type { UserRole } from '../context/Web3Context';
-import { ShieldAlert, Award, UserCheck, EyeOff, Info } from 'lucide-react';
+import { ShieldAlert, Award, UserCheck, EyeOff, Info, X } from 'lucide-react';
 
 export const RoleSwitcher: React.FC = () => {
   const { currentRole, setCurrentRole, connectWallet, disconnectWallet, ngos, setActiveNgoId, setDonorProfile } = useWeb3();
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const handleToggle = () => setIsVisible(prev => !prev);
+    window.addEventListener('toggle-role-switcher', handleToggle);
+    return () => window.removeEventListener('toggle-role-switcher', handleToggle);
+  }, []);
 
   const handleRoleChange = (role: UserRole, ngoType?: 'verified' | 'pending') => {
     if (role === 'guest') {
@@ -38,13 +45,34 @@ export const RoleSwitcher: React.FC = () => {
     }
   };
 
+  if (!isVisible) {
+    return (
+      <button
+        onClick={() => setIsVisible(true)}
+        className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-slate-900 text-white shadow-xl hover:bg-trust-blue transition-all duration-300 flex items-center justify-center cursor-pointer border border-slate-800"
+        title="Open Simulation Control Tower"
+      >
+        <ShieldAlert size={16} />
+      </button>
+    );
+  }
+
   return (
     <div className="fixed bottom-6 right-6 z-50 cinematic-glass rounded-2xl p-4 shadow-xl border border-slate-200 w-80 max-w-xs transition-all duration-300 hover:shadow-2xl">
-      <div className="flex items-center gap-1.5 mb-3 border-b border-slate-100 pb-2">
-        <Info size={14} className="text-trust-blue" />
-        <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-slate-800">
-          Simulation Control Tower
-        </h4>
+      <div className="flex items-center justify-between gap-1.5 mb-3 border-b border-slate-100 pb-2">
+        <div className="flex items-center gap-1.5">
+          <Info size={14} className="text-trust-blue" />
+          <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-slate-800">
+            Simulation Control Tower
+          </h4>
+        </div>
+        <button
+          onClick={() => setIsVisible(false)}
+          className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+          title="Minimize"
+        >
+          <X size={14} />
+        </button>
       </div>
       
       <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">
