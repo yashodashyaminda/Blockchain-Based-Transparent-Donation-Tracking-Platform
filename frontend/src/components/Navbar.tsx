@@ -39,7 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
     const observerOptions: IntersectionObserverInit = {
       root: null,
-      rootMargin: '-20% 0px -45% 0px', // Active threshold around viewport center
+      rootMargin: '-20% 0px -45% 0px',
       threshold: 0.1,
     };
 
@@ -241,20 +241,28 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
             <span>Connect Web3 Wallet</span>
           </button>
         ) : (
-          <div className="flex items-center gap-2">
-            {/* Clean text Login button */}
+          <div className="flex items-center gap-2 text-xs">
+            {/* Login button */}
             <button
               onClick={() => setActivePage('login')}
-              className="text-slate-800 hover:text-blue-600 font-semibold px-4 py-2 transition-colors cursor-pointer flex items-center gap-1.5"
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all cursor-pointer ${
+                activePage === 'login'
+                  ? 'bg-blue-600 text-white font-semibold shadow-md'
+                  : 'bg-transparent text-slate-800 hover:text-blue-600 font-medium'
+              }`}
             >
               <LogIn size={14} />
               <span>Login</span>
             </button>
 
-            {/* Bold solid CTA Register button */}
+            {/* Register button */}
             <button
               onClick={() => setActivePage('register')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+              className={`px-4 py-2 rounded-xl transition-all cursor-pointer ${
+                activePage === 'register'
+                  ? 'bg-blue-600 text-white font-semibold shadow-md'
+                  : 'bg-transparent text-slate-800 hover:text-blue-600 font-medium'
+              }`}
             >
               Register
             </button>
