@@ -5,6 +5,8 @@ export interface NGO {
   id: string;
   name: string;
   email: string;
+  registrationNumber?: string;
+  contactInfo?: string;
   documentName: string;
   documentUrl: string;
   isVerified: boolean;
@@ -51,14 +53,19 @@ interface Web3ContextType {
   walletAddress: string;
   connectWallet: () => void;
   disconnectWallet: () => void;
+  bindWalletToProfile: (customAddr?: string) => void;
   
-  // Auth/Roles
+  // Auth/Roles (Web2.5)
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
   activeNgoId: string | null;
   setActiveNgoId: (id: string | null) => void;
   donorProfile: { name: string; email: string; wallet: string } | null;
   setDonorProfile: (profile: { name: string; email: string; wallet: string } | null) => void;
+  
+  loginUser: (email: string, password: string) => Promise<{ success: boolean; role?: UserRole; message?: string }>;
+  registerDonorUser: (data: { name: string; email: string; password?: string }) => void;
+  registerNgoUser: (data: { name: string; registrationNumber: string; contactInfo?: string; email: string; password?: string; documentName: string; documentUrl: string }) => void;
 
   // NGO Data & Management
   ngos: NGO[];
@@ -85,12 +92,14 @@ interface Web3ContextType {
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
-// Initial Data Setup
+// Initial Mock NGO Data Setup
 const initialNGOs: NGO[] = [
   {
     id: 'ngo-1',
     name: 'Global Care Alliance',
     email: 'info@globalcare.org',
+    registrationNumber: 'REG-2026-881A',
+    contactInfo: '+1 (555) 019-2831',
     documentName: 'registration_certificate.pdf',
     documentUrl: '/assets/images/3.png',
     isVerified: true,
@@ -100,10 +109,12 @@ const initialNGOs: NGO[] = [
     id: 'ngo-2',
     name: 'Save the Green',
     email: 'contact@savethegreen.org',
+    registrationNumber: 'REG-2026-994B',
+    contactInfo: '+1 (555) 019-9942',
     documentName: 'legal_declaration_2026.pdf',
     documentUrl: '/assets/images/3.png',
     isVerified: false,
-    wallet: '0x81c7e9De7c46f332a67e91B3363e7782A7C31d59',
+    wallet: '',
   }
 ];
 
@@ -191,14 +202,6 @@ const initialTransactions: Transaction[] = [
     donorAddress: '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a',
     campaignId: 'proj-1',
     campaignName: 'Pure Water Initiative'
-  },
-  {
-    hash: '0x9ae8dfc47abec982cf091decf7c73a8e9db193bde7cf2b489aef41b6c08adcf2',
-    date: '2026-06-23 11:22:18',
-    amount: 4000,
-    donorAddress: '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a',
-    campaignId: 'proj-2',
-    campaignName: 'Tech Kids Academy'
   }
 ];
 
@@ -249,22 +252,106 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('transaction_registry', JSON.stringify(transactions));
   }, [isWalletConnected, walletAddress, currentRole, activeNgoId, donorProfile, ngos, campaigns, transactions]);
 
-  // Connect wallet simulator
-  const connectWallet = () => {
-    setIsWalletConnected(true);
-    // Standard mock MetaMask address
-    const mockAddr = '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a';
-    setWalletAddress(mockAddr);
-    
-    // Auto-create donor profile if role is guest and connecting wallet to make it clean
-    if (currentRole === 'guest') {
-      setCurrentRole('donor');
-      setDonorProfile({
-        name: 'Sarah Connor',
-        email: 'sarah@skynet-resistance.io',
-        wallet: mockAddr
-      });
+  // Unified Web2 Login handler
+  const loginUser = async (email: string, _password: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if matching Admin credentials
+    if (cleanEmail === 'admin@platform.org' || cleanEmail.includes('admin')) {
+      setCurrentRole('admin');
+      return { success: true, role: 'admin' as UserRole };
     }
+
+    // Check if matching registered NGO email
+    const matchingNgo = ngos.find(n => n.email.toLowerCase() === cleanEmail);
+    if (matchingNgo) {
+      setCurrentRole('ngo');
+      setActiveNgoId(matchingNgo.id);
+      if (matchingNgo.wallet) {
+        setIsWalletConnected(true);
+        setWalletAddress(matchingNgo.wallet);
+      } else {
+        setIsWalletConnected(false);
+        setWalletAddress('');
+      }
+      return { success: true, role: 'ngo' as UserRole };
+    }
+
+    // Fallback/Default Donor login simulation
+    const donorName = cleanEmail.split('@')[0].replace('.', ' ');
+    const formattedName = donorName.charAt(0).toUpperCase() + donorName.slice(1);
+    
+    const profile = {
+      name: formattedName || 'Sarah Connor',
+      email: cleanEmail,
+      wallet: donorProfile?.wallet || walletAddress || ''
+    };
+
+    setCurrentRole('donor');
+    setDonorProfile(profile);
+    
+    if (profile.wallet) {
+      setIsWalletConnected(true);
+      setWalletAddress(profile.wallet);
+    } else {
+      setIsWalletConnected(false);
+      setWalletAddress('');
+    }
+
+    return { success: true, role: 'donor' as UserRole };
+  };
+
+  // Web2 Donor Registration
+  const registerDonorUser = (data: { name: string; email: string; password?: string }) => {
+    const newProfile = {
+      name: data.name,
+      email: data.email,
+      wallet: ''
+    };
+    setDonorProfile(newProfile);
+    setCurrentRole('donor');
+    setIsWalletConnected(false);
+    setWalletAddress('');
+  };
+
+  // Web2 NGO Registration (with Email and Password)
+  const registerNgoUser = (data: { name: string; registrationNumber: string; contactInfo?: string; email: string; password?: string; documentName: string; documentUrl: string }) => {
+    const newNGO: NGO = {
+      id: `ngo-${Math.random().toString(36).substring(2, 9)}`,
+      name: data.name,
+      email: data.email,
+      registrationNumber: data.registrationNumber,
+      contactInfo: data.contactInfo,
+      documentName: data.documentName || 'verification_document.pdf',
+      documentUrl: data.documentUrl || '/assets/images/3.png',
+      isVerified: false,
+      wallet: '', // Unbound initially
+    };
+
+    setNgos(prev => [...prev, newNGO]);
+    setCurrentRole('ngo');
+    setActiveNgoId(newNGO.id);
+    setIsWalletConnected(false);
+    setWalletAddress('');
+  };
+
+  // Post-Login Web3 Wallet Connection & Profile Binding
+  const bindWalletToProfile = (customAddr?: string) => {
+    const boundAddress = customAddr || '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a';
+    setIsWalletConnected(true);
+    setWalletAddress(boundAddress);
+
+    if (currentRole === 'donor' && donorProfile) {
+      setDonorProfile({ ...donorProfile, wallet: boundAddress });
+    } else if (currentRole === 'ngo' && activeNgoId) {
+      setNgos(prev =>
+        prev.map(n => (n.id === activeNgoId ? { ...n, wallet: boundAddress } : n))
+      );
+    }
+  };
+
+  const connectWallet = () => {
+    bindWalletToProfile();
   };
 
   const disconnectWallet = () => {
@@ -275,25 +362,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     setDonorProfile(null);
   };
 
-  // Register NGO (Path B)
+  // Backward compatible registerNGO handler
   const registerNGO = (name: string, email: string, regId: string, docName: string, docDataUrl: string) => {
-    const mockNgoWallet = '0x' + Math.random().toString(16).substring(2, 42);
-    const newNGO: NGO = {
-      id: regId || `ngo-${Math.random().toString(36).substring(2, 9)}`,
+    registerNgoUser({
       name,
       email,
-      documentName: docName || 'uploaded_document.pdf',
-      documentUrl: docDataUrl || '/assets/images/3.png',
-      isVerified: false,
-      wallet: mockNgoWallet,
-    };
-
-    setNgos(prev => [...prev, newNGO]);
-    setCurrentRole('ngo');
-    setActiveNgoId(newNGO.id);
+      registrationNumber: regId,
+      documentName: docName,
+      documentUrl: docDataUrl
+    });
   };
 
-  // Admin verifies NGO
   const verifyNGO = (id: string, approve: boolean) => {
     setNgos(prev => 
       prev.map(ngo => {
@@ -305,7 +384,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // Campaign Add/Edit/Delete (verified NGO or Admin)
   const addCampaign = (name: string, category: Campaign['category'], description: string, image: string, target: number) => {
     let ngoName = 'System Admin';
     let ngoId = 'admin';
@@ -318,7 +396,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Distribute milestones roughly (e.g. 3 phases: 40%, 40%, 20%)
     const ms1 = Math.round(target * 0.4);
     const ms2 = Math.round(target * 0.4);
     const ms3 = target - ms1 - ms2;
@@ -368,11 +445,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // Donate to Campaign (Donor)
   const donateToCampaign = async (campaignId: string, amount: number): Promise<boolean> => {
     if (!isWalletConnected) return false;
     
-    // Simulate smart contract payment latency
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
@@ -382,7 +457,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!campaign) return false;
 
-    // Update campaign raised funds
     setCampaigns(prev => 
       prev.map(c => {
         if (c.id === campaignId) {
@@ -392,7 +466,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
 
-    // Create transaction log
     const newTx: Transaction = {
       hash: txHash,
       date: dateStr,
@@ -406,7 +479,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  // Milestone Proof Submission (NGO)
   const addMilestoneProof = (campaignId: string, milestoneId: string, proofText: string, proofDocName: string) => {
     setCampaigns(prev => 
       prev.map(c => {
@@ -415,7 +487,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
             if (m.id === milestoneId) {
               return {
                 ...m,
-                status: 'Approved', // Ready for admin release validation
+                status: 'Approved',
                 proofText,
                 proofDoc: proofDocName || 'receipt_ipfs.pdf'
               } as Milestone;
@@ -429,9 +501,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // Admin Validates Proof & Release Smart Contract Funds
   const validateMilestoneProof = async (campaignId: string, milestoneId: string) => {
-    // Simulate blockchain transaction approval delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
 
@@ -455,7 +525,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // Reset to original data
   const resetState = () => {
     localStorage.clear();
     setIsWalletConnected(false);
@@ -475,12 +544,16 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         walletAddress,
         connectWallet,
         disconnectWallet,
+        bindWalletToProfile,
         currentRole,
         setCurrentRole,
         activeNgoId,
         setActiveNgoId,
         donorProfile,
         setDonorProfile,
+        loginUser,
+        registerDonorUser,
+        registerNgoUser,
         ngos,
         registerNGO,
         verifyNGO,

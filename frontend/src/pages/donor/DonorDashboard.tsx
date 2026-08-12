@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
 import type { Campaign } from '../../context/Web3Context';
-import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw, ShieldCheck } from 'lucide-react';
 
 interface DonorDashboardProps {
   preSelectedCampaignId: string | null;
@@ -10,7 +10,7 @@ interface DonorDashboardProps {
 }
 
 export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampaignId, setPreSelectedCampaignId }) => {
-  const { campaigns, donateToCampaign, isWalletConnected, walletAddress, transactions, donorProfile } = useWeb3();
+  const { campaigns, donateToCampaign, isWalletConnected, walletAddress, transactions, donorProfile, bindWalletToProfile } = useWeb3();
   const [activeTab, setActiveTab] = useState<'browse' | 'map' | 'ledger'>('browse');
 
   // Search filter
@@ -33,7 +33,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       if (found) {
         setSelectedCampaign(found);
         setActiveTab('browse');
-        setPreSelectedCampaignId(null); // clear
+        setPreSelectedCampaignId(null);
       }
     }
   }, [preSelectedCampaignId, campaigns]);
@@ -52,6 +52,11 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   const handleDonationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCampaign || !donationAmount || parseFloat(donationAmount) <= 0) return;
+
+    if (!isWalletConnected) {
+      bindWalletToProfile();
+      return;
+    }
 
     setIsDonating(true);
     const success = await donateToCampaign(selectedCampaign.id, parseFloat(donationAmount));
@@ -90,7 +95,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 Donor Tracking Room
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Account: <span className="font-semibold text-slate-800">{donorProfile?.name || 'Sarah Connor'}</span> • Wallet: <span className="font-mono text-slate-600">{walletAddress || 'Disconnected'}</span>
+                Account: <span className="font-semibold text-slate-800">{donorProfile?.name || 'Sarah Connor'}</span> ({donorProfile?.email || 'donor@email.com'}) • Wallet Address: <span className="font-mono text-slate-600 font-semibold">{walletAddress ? `${walletAddress.substring(0, 10)}...` : 'Unbound'}</span>
               </p>
             </div>
           </div>
@@ -123,6 +128,37 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
             </button>
           </div>
         </div>
+
+        {/* POST-LOGIN WEB3 WALLET BINDING BANNER */}
+        {!isWalletConnected && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 rounded-3xl bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 border border-blue-900/50"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-trust-blue/20 border border-trust-blue/40 flex items-center justify-center text-trust-blue shadow-inner shrink-0">
+                <Wallet size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading font-extrabold text-lg text-white">Connect Web3 Wallet to Enable On-Chain Donations</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-trust-blue/20 text-blue-300 border border-blue-400/30">Step 2 of 2</span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  You are authenticated via Web2. Connect your Web3 wallet (MetaMask / WalletConnect) to bind your wallet address to your donor profile and enable smart contract escrow deposits.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => bindWalletToProfile()}
+              className="px-6 py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blue-hover text-white font-heading text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-lg glow-blue shrink-0 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Wallet size={16} />
+              <span>Connect & Bind Wallet</span>
+            </button>
+          </motion.div>
+        )}
 
         {/* WORKSPACE SWITCHER */}
         <div className="min-h-[480px]">
@@ -212,7 +248,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 transition={{ duration: 0.25 }}
                 className="grid lg:grid-cols-12 gap-8"
               >
-                {/* Left Side: Campaign selector list */}
                 <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-100 p-6 flex flex-col gap-4 shadow-sm h-fit">
                   <h3 className="font-heading font-extrabold text-sm text-slate-900">Active Proposals Ledger</h3>
                   <div className="flex flex-col gap-2.5">
@@ -236,7 +271,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                   </div>
                 </div>
 
-                {/* Right Side: Horizontal flowing timeline ledger map */}
                 <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-8 shadow-sm justify-between">
                   <div className="flex items-start justify-between border-b border-slate-100 pb-4">
                     <div>
@@ -248,16 +282,13 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                     </span>
                   </div>
 
-                  {/* Flowing Map Node Timeline Visual */}
                   <div className="relative py-12 flex justify-between items-center px-4 overflow-x-auto min-h-[220px]">
-                    {/* SVG Flowing Connector Line */}
                     <div className="absolute left-[8%] right-[8%] top-[50%] -translate-y-1/2 z-0 h-1">
                       <svg className="w-full h-2 overflow-visible" fill="none">
                         <line 
                           x1="0" y1="2" x2="100%" y2="2" 
                           stroke="#e2e8f0" strokeWidth="3" 
                         />
-                        {/* Flowing dashed path */}
                         <line 
                           x1="0" y1="2" x2="100%" y2="2" 
                           stroke="#2563eb" strokeWidth="3" 
@@ -266,7 +297,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                       </svg>
                     </div>
 
-                    {/* Milestone nodes */}
                     {selectedMapCampaign?.milestones.map((m, idx) => {
                       const isReleased = m.status === 'Released';
                       const isApproved = m.status === 'Approved';
@@ -278,7 +308,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                           onClick={() => setActiveMilestoneNode({ ...m, index: idx + 1 })}
                           className="relative z-10 flex flex-col items-center cursor-pointer select-none group shrink-0 w-28 text-center"
                         >
-                          {/* Bubble */}
                           <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
                             isReleased
                               ? 'bg-emerald-500 border-emerald-200 text-white shadow-lg glow-green'
@@ -295,7 +324,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             )}
                           </div>
 
-                          {/* Node label */}
                           <div className="mt-3">
                             <span className="block text-[10px] font-bold text-slate-800 line-clamp-1 group-hover:text-trust-blue">
                               {m.title}
@@ -309,7 +337,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                     })}
                   </div>
 
-                  {/* Bubble expansions details card drawer */}
                   <div className="min-h-[120px]">
                     <AnimatePresence mode="wait">
                       {activeMilestoneNode ? (
@@ -345,7 +372,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             <span className="font-heading font-extrabold text-base text-slate-800">${activeMilestoneNode.amount.toLocaleString()}</span>
                             {activeMilestoneNode.proofDoc && (
                               <a
-                                href="/assets/images/3.png" // default document mock render
+                                href="/assets/images/3.png"
                                 target="_blank"
                                 rel="noreferrer"
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm"
@@ -429,7 +456,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
           </AnimatePresence>
         </div>
 
-        {/* DONATE MODAL / PANEL */}
+        {/* DONATE MODAL */}
         <AnimatePresence>
           {selectedCampaign && (
             <motion.div
@@ -477,11 +504,11 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Escrow Security Protocols</span>
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2 text-[10px] text-slate-600">
-                        <div className="w-1.5 h-1.5 rounded-full bg-trust-blue" />
-                        <span>Locked in multi-sig contract</span>
+                        <ShieldCheck size={14} className="text-trust-blue" />
+                        <span>Locked in multi-sig smart contract</span>
                       </div>
                       <div className="flex items-center gap-2 text-[10px] text-slate-600">
-                        <div className="w-1.5 h-1.5 rounded-full bg-trust-blue" />
+                        <ShieldCheck size={14} className="text-trust-blue" />
                         <span>Released only on approved milestones</span>
                       </div>
                     </div>
@@ -489,7 +516,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
                   <button
                     type="submit"
-                    disabled={isDonating || donationSuccess || !isWalletConnected}
+                    disabled={isDonating || donationSuccess}
                     className="w-full py-4 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-trust-blue disabled:bg-slate-400 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-300 mt-2 glow-blue flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isDonating ? (
@@ -503,7 +530,10 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                         <span>Transaction Completed & Logged</span>
                       </>
                     ) : !isWalletConnected ? (
-                      <span>Connect Wallet First</span>
+                      <>
+                        <Wallet size={14} />
+                        <span>Connect & Bind Wallet to Donate</span>
+                      </>
                     ) : (
                       <>
                         <span>Approve & Transfer Funds</span>

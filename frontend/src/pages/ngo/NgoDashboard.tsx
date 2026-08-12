@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
 import type { Campaign } from '../../context/Web3Context';
-import { Award, AlertTriangle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw } from 'lucide-react';
+import { Award, AlertTriangle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw, Wallet } from 'lucide-react';
 
 export const NgoDashboard: React.FC = () => {
-  const { activeNgoId, ngos, campaigns, addCampaign, addMilestoneProof } = useWeb3();
+  const { activeNgoId, ngos, campaigns, addCampaign, addMilestoneProof, isWalletConnected, walletAddress, bindWalletToProfile } = useWeb3();
 
   // Find active NGO profile details
   const activeNgo = ngos.find(n => n.id === activeNgoId) || ngos[0]; // fallback
@@ -43,7 +43,7 @@ export const NgoDashboard: React.FC = () => {
       projName,
       projCat,
       projDesc,
-      '/assets/images/4.png', // use generated high quality photo as default
+      '/assets/images/4.png',
       parseFloat(projTarget)
     );
 
@@ -72,7 +72,7 @@ export const NgoDashboard: React.FC = () => {
         }
         return prev + 20;
       });
-    }, 1500); // 1.5s simulated upload
+    }, 1500);
   };
 
   // Milestone submit handler
@@ -127,7 +127,7 @@ export const NgoDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Representative: {activeNgo?.email || 'N/A'} • Address: <span className="font-mono text-slate-600">{activeNgo?.wallet || 'N/A'}</span>
+                Official Email: {activeNgo?.email || 'N/A'} • Bound NGO Wallet: <span className="font-mono text-slate-700 font-semibold">{walletAddress || activeNgo?.wallet || 'Unbound'}</span>
               </p>
             </div>
           </div>
@@ -146,6 +146,37 @@ export const NgoDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* POST-LOGIN WEB3 WALLET BINDING BANNER */}
+        {!isWalletConnected && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 rounded-3xl bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 border border-blue-900/50"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-trust-blue/20 border border-trust-blue/40 flex items-center justify-center text-trust-blue shadow-inner shrink-0">
+                <Wallet size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading font-extrabold text-lg text-white">Bind NGO Web3 Wallet</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-trust-blue/20 text-blue-300 border border-blue-400/30">Action Needed</span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  Connect your organizational wallet address to receive milestone payouts automatically when milestone proofs are audited and released by system administrators.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => bindWalletToProfile()}
+              className="px-6 py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blue-hover text-white font-heading text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-lg glow-blue shrink-0 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Wallet size={16} />
+              <span>Connect & Bind NGO Wallet</span>
+            </button>
+          </motion.div>
+        )}
 
         {/* WORKSPACE AREA WITH STATE LOCK OVERLAY */}
         <div className="relative">
@@ -249,7 +280,6 @@ export const NgoDashboard: React.FC = () => {
                     />
                   </div>
 
-                  {/* Project Image Dropzone */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Campaign Image Showcase</label>
                     <div className="border border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50 flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-100/50 transition-colors duration-200">
@@ -282,7 +312,6 @@ export const NgoDashboard: React.FC = () => {
             {/* MODULE B: ADD MILESTONE PROOF DISPATCHER */}
             <div className="lg:col-span-7 flex flex-col gap-6">
               
-              {/* Proof submission form */}
               <div className="bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm">
                 <div>
                   <h3 className="font-heading font-extrabold text-lg text-slate-900 flex items-center gap-2">
@@ -294,7 +323,6 @@ export const NgoDashboard: React.FC = () => {
 
                 <form onSubmit={handleMilestoneProofSubmit} className="flex flex-col gap-5">
                   <div className="grid md:grid-cols-2 gap-4">
-                    {/* Select Campaign */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Select Campaign</label>
                       <select
@@ -314,7 +342,6 @@ export const NgoDashboard: React.FC = () => {
                       </select>
                     </div>
 
-                    {/* Select Milestone */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Target Milestone Phase</label>
                       <select
@@ -345,7 +372,6 @@ export const NgoDashboard: React.FC = () => {
                     />
                   </div>
 
-                  {/* Drag-over/file upload for receipts */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Upload Receipts / Document Proof</label>
                     
@@ -445,7 +471,6 @@ export const NgoDashboard: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Progress */}
                     <div>
                       <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
                         <span>Fundraising Progress</span>
@@ -456,7 +481,6 @@ export const NgoDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Milestones status list */}
                     <div className="flex flex-col gap-2">
                       <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Milestone Audit Steps</span>
                       <div className="flex flex-col gap-1.5">

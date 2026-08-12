@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWeb3 } from '../context/Web3Context';
-import { Wallet, ShieldAlert, Award, User, RefreshCw, LayoutDashboard, Home } from 'lucide-react';
+import { Wallet, ShieldAlert, Award, User, RefreshCw, LayoutDashboard, Home, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   activePage: string;
@@ -92,19 +92,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           </button>
         )}
 
-        {/* Web3 Reset Simulator Button */}
+        {/* Reset State Simulator */}
         <button
           onClick={resetState}
           className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all duration-300 hover:rotate-180 cursor-pointer"
-          title="Reset Simulation Ledger"
+          title="Reset Platform State"
         >
           <RefreshCw size={16} />
         </button>
 
-        {/* Connect Wallet */}
+        {/* Web2.5 Auth & Wallet Header Navigation */}
         {isWalletConnected ? (
           <div className="flex items-center gap-2">
-            {/* Identity Badge */}
             <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-trust-blue-light text-trust-blue text-xs font-semibold border border-blue-100">
               {currentRole === 'admin' ? (
                 <>
@@ -124,7 +123,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               )}
             </div>
 
-            {/* Wallet Address Display */}
             <button
               onClick={disconnectWallet}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-heading text-xs font-semibold bg-white border border-slate-200 shadow-sm hover:border-red-300 hover:text-red-600 transition-all duration-200 glow-blue cursor-pointer"
@@ -133,14 +131,39 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               <span>{truncateAddress(walletAddress)}</span>
             </button>
           </div>
-        ) : (
+        ) : currentRole !== 'guest' ? (
           <button
             onClick={connectWallet}
-            className="flex items-center gap-2 bg-trust-blue hover:bg-trust-blue-hover text-white px-5 py-2.5 rounded-xl font-heading text-xs font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 glow-blue cursor-pointer"
+            className="flex items-center gap-2 bg-trust-blue hover:bg-trust-blue-hover text-white px-4 py-2 rounded-xl font-heading text-xs font-semibold transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
           >
             <Wallet size={14} />
-            <span>Connect Wallet</span>
+            <span>Connect Web3 Wallet</span>
           </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActivePage('login')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-heading text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                activePage === 'login'
+                  ? 'bg-trust-blue text-white shadow-sm'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+              }`}
+            >
+              <LogIn size={14} />
+              <span>Log In</span>
+            </button>
+
+            <button
+              onClick={() => setActivePage('register')}
+              className={`px-4 py-2 rounded-xl font-heading text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                activePage === 'register'
+                  ? 'bg-slate-900 text-white shadow-md'
+                  : 'bg-trust-blue text-white hover:bg-trust-blue-hover shadow-sm'
+              }`}
+            >
+              Register
+            </button>
+          </div>
         )}
       </div>
     </nav>

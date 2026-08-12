@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Home } from './pages/Home';
+import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { NgoDashboard } from './pages/ngo/NgoDashboard';
 import { DonorDashboard } from './pages/donor/DonorDashboard';
@@ -13,7 +14,7 @@ import Lenis from 'lenis';
 function App() {
   const [activePage, setActivePage] = useState<string>('home');
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const { isWalletConnected } = useWeb3();
+  const { currentRole } = useWeb3();
 
   // Initialize Lenis Smooth Scrolling
   useEffect(() => {
@@ -39,17 +40,21 @@ function App() {
     };
   }, []);
 
-  // Sync route redirects if connection or role drops
+  // Web2.5 Auth Route Guard: Redirect unauthenticated guest users attempting to view private dashboards
   useEffect(() => {
-    // If not connected and looking at dashboards, redirect to home
-    if (!isWalletConnected && activePage !== 'home' && activePage !== 'register') {
-      setActivePage('home');
+    if (
+      currentRole === 'guest' &&
+      (activePage === 'ngo-dashboard' || activePage === 'donor-dashboard' || activePage === 'admin-dashboard')
+    ) {
+      setActivePage('login');
     }
-  }, [isWalletConnected, activePage]);
+  }, [currentRole, activePage]);
 
   // Page Routing Render Helper
   const renderPage = () => {
     switch (activePage) {
+      case 'login':
+        return <Login setActivePage={setActivePage} />;
       case 'register':
         return (
           <Register 
