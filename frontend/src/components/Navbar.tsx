@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../context/Web3Context';
 import { Wallet, ShieldAlert, Award, User, RefreshCw, LayoutDashboard, Home, LogIn } from 'lucide-react';
 
@@ -9,6 +9,21 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => {
   const { isWalletConnected, walletAddress, connectWallet, disconnectWallet, currentRole, resetState } = useWeb3();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Scroll listener for sticky transparent-to-solid transition effect
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Truncate address helper
   const truncateAddress = (addr: string) => {
@@ -17,7 +32,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
   };
 
   return (
-    <nav className="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-7xl z-50 cinematic-glass rounded-2xl px-6 py-4 flex items-center justify-between transition-all duration-300 hover:shadow-lg">
+    <nav
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 px-6 md:px-12 flex items-center justify-between ${
+        isScrolled
+          ? 'bg-white/90 backdrop-blur-md shadow-md py-3'
+          : 'bg-transparent py-5'
+      }`}
+    >
       {/* Brand logo */}
       <div
         className="flex items-center gap-2 cursor-pointer group"
@@ -74,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               else if (currentRole === 'ngo') setActivePage('ngo-dashboard');
               else setActivePage('donor-dashboard');
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-200 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 transition-colors duration-200 cursor-pointer"
           >
             <LayoutDashboard size={14} className="text-slate-500" />
             <span>Workspace</span>
@@ -85,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         {activePage !== 'home' && (
           <button
             onClick={() => setActivePage('home')}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-200 cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 transition-colors duration-200 cursor-pointer"
             title="Go to Landing Page"
           >
             <Home size={16} />
@@ -95,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         {/* Reset State Simulator */}
         <button
           onClick={resetState}
-          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all duration-300 hover:rotate-180 cursor-pointer"
+          className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 transition-all duration-300 hover:rotate-180 cursor-pointer"
           title="Reset Platform State"
         >
           <RefreshCw size={16} />
@@ -146,7 +167,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-heading text-xs font-semibold transition-all duration-200 cursor-pointer ${
                 activePage === 'login'
                   ? 'bg-trust-blue text-white shadow-sm'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                  : 'bg-slate-100/80 hover:bg-slate-200/80 text-slate-800'
               }`}
             >
               <LogIn size={14} />
