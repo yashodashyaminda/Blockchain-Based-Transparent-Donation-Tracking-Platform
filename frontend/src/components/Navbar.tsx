@@ -10,8 +10,9 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => {
   const { isWalletConnected, walletAddress, connectWallet, disconnectWallet, currentRole, resetState } = useWeb3();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>('hero');
 
-  // Scroll listener for sticky transparent-to-solid transition effect
+  // Sticky navbar scroll state transition
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -24,6 +25,55 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // IntersectionObserver Scroll-Spy for section tracking
+  useEffect(() => {
+    if (activePage !== 'home') return;
+
+    const sectionIds = ['hero', 'goal', 'about', 'campaigns', 'contact'];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+
+    if (sections.length === 0) return;
+
+    const observerOptions: IntersectionObserverInit = {
+      root: null,
+      rootMargin: '-20% 0px -45% 0px', // Active threshold around viewport center
+      threshold: 0.1,
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, observerOptions);
+
+    sections.forEach((section) => observer.observe(section));
+
+    return () => {
+      sections.forEach((section) => observer.unobserve(section));
+    };
+  }, [activePage]);
+
+  // Smooth scroll handler helper
+  const scrollToSection = (sectionId: string) => {
+    setActivePage('home');
+    setActiveSection(sectionId);
+
+    setTimeout(() => {
+      if (sectionId === 'hero') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }, 50);
+  };
 
   // Truncate address helper
   const truncateAddress = (addr: string) => {
@@ -39,47 +89,77 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           : 'bg-transparent py-5'
       }`}
     >
-      {/* Brand logo */}
+      {/* Brand logo container - Clicking ANY part scrolls smoothly to top of Home */}
       <div
-        className="flex items-center gap-2 cursor-pointer group"
-        onClick={() => setActivePage('home')}
+        className="flex items-center gap-2.5 cursor-pointer group"
+        onClick={() => scrollToSection('hero')}
       >
-        <div className="w-10 h-10 rounded-xl bg-trust-blue flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-105 transition-transform duration-300">
+        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-lg shadow-md group-hover:scale-105 group-hover:bg-blue-700 transition-all duration-300">
           Ξ
         </div>
         <div>
-          <span className="font-heading font-bold text-lg tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+          <span className="font-heading font-extrabold text-lg tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors duration-200">
             ChainTrust
           </span>
-          <span className="block text-[9px] tracking-[0.2em] uppercase font-semibold text-trust-blue">
+          <span className="block text-[9px] tracking-[0.2em] uppercase font-bold text-blue-600">
             Donation Ledger
           </span>
         </div>
       </div>
 
-      {/* Nav Links */}
-      <div className="hidden md:flex items-center gap-8 font-sans text-sm font-medium text-slate-600">
+      {/* Nav Links with Scroll-Spy Active Highlighting */}
+      <div className="hidden md:flex items-center gap-8 font-sans text-sm">
         <button
-          onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
-          className={`hover:text-trust-blue transition-colors duration-200 cursor-pointer ${activePage === 'home' ? 'text-trust-blue font-semibold' : ''}`}
+          onClick={() => scrollToSection('hero')}
+          className={`transition-colors duration-200 cursor-pointer ${
+            activePage === 'home' && activeSection === 'hero'
+              ? 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+              : 'text-slate-800 hover:text-blue-600 font-medium'
+          }`}
         >
           Home
         </button>
+
         <button
-          onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('goal')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
-          className="hover:text-trust-blue transition-colors duration-200 cursor-pointer"
+          onClick={() => scrollToSection('goal')}
+          className={`transition-colors duration-200 cursor-pointer ${
+            activePage === 'home' && activeSection === 'goal'
+              ? 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+              : 'text-slate-800 hover:text-blue-600 font-medium'
+          }`}
         >
           Our Goal
         </button>
+
         <button
-          onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
-          className="hover:text-trust-blue transition-colors duration-200 cursor-pointer"
+          onClick={() => scrollToSection('about')}
+          className={`transition-colors duration-200 cursor-pointer ${
+            activePage === 'home' && activeSection === 'about'
+              ? 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+              : 'text-slate-800 hover:text-blue-600 font-medium'
+          }`}
         >
           About Us
         </button>
+
         <button
-          onClick={() => { setActivePage('home'); setTimeout(() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
-          className="hover:text-trust-blue transition-colors duration-200 cursor-pointer"
+          onClick={() => scrollToSection('campaigns')}
+          className={`transition-colors duration-200 cursor-pointer ${
+            activePage === 'home' && activeSection === 'campaigns'
+              ? 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+              : 'text-slate-800 hover:text-blue-600 font-medium'
+          }`}
+        >
+          Campaigns
+        </button>
+
+        <button
+          onClick={() => scrollToSection('contact')}
+          className={`transition-colors duration-200 cursor-pointer ${
+            activePage === 'home' && activeSection === 'contact'
+              ? 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+              : 'text-slate-800 hover:text-blue-600 font-medium'
+          }`}
         >
           Contact
         </button>
@@ -87,7 +167,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
       {/* Action Buttons */}
       <div className="flex items-center gap-3">
-        {/* Dashboard Link if logged in */}
+        {/* Workspace Link if logged in */}
         {currentRole !== 'guest' && (
           <button
             onClick={() => {
@@ -95,9 +175,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               else if (currentRole === 'ngo') setActivePage('ngo-dashboard');
               else setActivePage('donor-dashboard');
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 transition-colors duration-200 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors duration-200 cursor-pointer"
           >
-            <LayoutDashboard size={14} className="text-slate-500" />
+            <LayoutDashboard size={14} className="text-slate-600" />
             <span>Workspace</span>
           </button>
         )}
@@ -105,9 +185,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         {/* Home Button if not on Home */}
         {activePage !== 'home' && (
           <button
-            onClick={() => setActivePage('home')}
-            className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 transition-colors duration-200 cursor-pointer"
-            title="Go to Landing Page"
+            onClick={() => scrollToSection('hero')}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors duration-200 cursor-pointer"
+            title="Go to Home"
           >
             <Home size={16} />
           </button>
@@ -116,29 +196,29 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         {/* Reset State Simulator */}
         <button
           onClick={resetState}
-          className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 transition-all duration-300 hover:rotate-180 cursor-pointer"
+          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition-all duration-300 hover:rotate-180 cursor-pointer"
           title="Reset Platform State"
         >
           <RefreshCw size={16} />
         </button>
 
-        {/* Web2.5 Auth & Wallet Header Navigation */}
+        {/* Auth / Web3 Buttons */}
         {isWalletConnected ? (
           <div className="flex items-center gap-2">
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-trust-blue-light text-trust-blue text-xs font-semibold border border-blue-100">
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
               {currentRole === 'admin' ? (
                 <>
-                  <ShieldAlert size={12} className="text-trust-blue" />
+                  <ShieldAlert size={12} className="text-blue-600" />
                   <span>Admin</span>
                 </>
               ) : currentRole === 'ngo' ? (
                 <>
-                  <Award size={12} className="text-trust-blue" />
+                  <Award size={12} className="text-blue-600" />
                   <span>NGO</span>
                 </>
               ) : (
                 <>
-                  <User size={12} className="text-trust-blue" />
+                  <User size={12} className="text-blue-600" />
                   <span>Donor</span>
                 </>
               )}
@@ -146,41 +226,35 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
             <button
               onClick={disconnectWallet}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-heading text-xs font-semibold bg-white border border-slate-200 shadow-sm hover:border-red-300 hover:text-red-600 transition-all duration-200 glow-blue cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold bg-white border border-slate-200 text-slate-800 shadow-sm hover:border-red-300 hover:text-red-600 transition-all duration-200 cursor-pointer"
             >
-              <div className="w-2 h-2 rounded-full bg-milestone-green animate-ping" />
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <span>{truncateAddress(walletAddress)}</span>
             </button>
           </div>
         ) : currentRole !== 'guest' ? (
           <button
             onClick={connectWallet}
-            className="flex items-center gap-2 bg-trust-blue hover:bg-trust-blue-hover text-white px-4 py-2 rounded-xl font-heading text-xs font-semibold transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-heading text-xs font-bold transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer"
           >
             <Wallet size={14} />
             <span>Connect Web3 Wallet</span>
           </button>
         ) : (
           <div className="flex items-center gap-2">
+            {/* Clean text Login button */}
             <button
               onClick={() => setActivePage('login')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-heading text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                activePage === 'login'
-                  ? 'bg-trust-blue text-white shadow-sm'
-                  : 'bg-slate-100/80 hover:bg-slate-200/80 text-slate-800'
-              }`}
+              className="text-slate-800 hover:text-blue-600 font-semibold px-4 py-2 transition-colors cursor-pointer flex items-center gap-1.5"
             >
               <LogIn size={14} />
-              <span>Log In</span>
+              <span>Login</span>
             </button>
 
+            {/* Bold solid CTA Register button */}
             <button
               onClick={() => setActivePage('register')}
-              className={`px-4 py-2 rounded-xl font-heading text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                activePage === 'register'
-                  ? 'bg-slate-900 text-white shadow-md'
-                  : 'bg-trust-blue text-white hover:bg-trust-blue-hover shadow-sm'
-              }`}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
             >
               Register
             </button>
