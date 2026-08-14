@@ -3,7 +3,7 @@ import { Heart, Shield } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-slate-950 text-slate-400 py-12 px-6">
+    <footer className="bg-slate-950 border-t border-slate-900 text-white py-12 px-6">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         {/* Brand logo */}
         <div className="flex items-center gap-2">
@@ -11,7 +11,7 @@ export const Footer: React.FC = () => {
             Ξ
           </div>
           <div>
-            <span className="font-heading font-bold text-sm tracking-tight text-slate-100">
+            <span className="font-heading font-bold text-sm tracking-tight text-white">
               ChainTrust
             </span>
             <span className="block text-[8px] tracking-[0.2em] uppercase font-semibold text-blue-400">
@@ -29,7 +29,7 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Action icons */}
-        <div className="flex items-center gap-4 text-slate-450">
+        <div className="flex items-center gap-4 text-slate-400">
           <a href="#" className="hover:text-blue-400 transition-colors duration-200" title="Security Audit Report">
             <Shield size={16} />
           </a>
