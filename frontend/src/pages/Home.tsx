@@ -90,10 +90,10 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
         }}
       />
 
-      {/* SECTION 2: OUR GOAL (System-Matching Dark Blue Gradient Theme with Scroll Margin Fix) */}
+      {/* SECTION 2: OUR GOAL (Strict bg-slate-900 text-slate-300 Theme with border-y border-slate-800) */}
       <section
         id="goal"
-        className="scroll-mt-16 py-28 px-6 md:px-12 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white border-y border-slate-800/80 overflow-hidden"
+        className="scroll-mt-16 py-28 px-6 md:px-12 bg-slate-900 text-slate-300 border-y border-slate-800 overflow-hidden"
       >
         <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-12 items-center">
           <motion.div
@@ -103,13 +103,13 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
             transition={{ type: 'spring', stiffness: 50, damping: 15 }}
             className="md:col-span-5 flex flex-col gap-4"
           >
-            <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-blue-400">
+            <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-blue-500">
               Autonomous Governance
             </span>
             <h2 className="font-heading font-extrabold text-3xl md:text-5xl text-white tracking-tight leading-[1.1]">
               Zero Corruption, Full Accountability
             </h2>
-            <div className="w-20 h-1 bg-blue-500 rounded-full" />
+            <div className="w-20 h-1 bg-blue-600 rounded-full shadow-sm" />
           </motion.div>
 
           <motion.div
@@ -123,17 +123,17 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
               Traditional philanthropy suffers from administrative opacity, high transaction fee overheads, and misallocation of project budgets.
               <strong> ChainTrust</strong> bridges this trust gap by utilizing smart contract logic that locks charity capital in decentralized vaults.
             </p>
-            <p className="border-l-4 border-emerald-500 pl-4 italic text-slate-200 font-medium">
+            <p className="border-l-4 border-emerald-500 pl-4 italic text-slate-300 font-medium">
               "NGOs request funding releases by providing cryptographic validation documents, receipts, and photos. Funds are released strictly upon administrator checkmarks, rendering intermediate project fraud mathematically impossible."
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* SECTION 3: ABOUT US (Fixed Viewport Height & Soft Off-White Background) */}
+      {/* SECTION 3: ABOUT US (Strict bg-slate-50 text-slate-700 Theme with headings in text-slate-900) */}
       <section
         id="about"
-        className="scroll-mt-16 min-h-[calc(100vh-4rem)] flex flex-col justify-center py-8 px-6 md:px-12 bg-slate-50 overflow-hidden"
+        className="scroll-mt-16 min-h-[calc(100vh-4rem)] flex flex-col justify-center py-8 px-6 md:px-12 bg-slate-50 text-slate-700 overflow-hidden"
       >
         <div className="max-w-7xl mx-auto flex flex-col gap-12 w-full">
           <div className="text-center flex flex-col items-center gap-3">
@@ -222,7 +222,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
         </div>
       </section>
 
-      {/* SECTION 4: ACTIVE CAMPAIGNS HUB (Fixed Viewport Height, Pure White Background, Slider with Arrows) */}
+      {/* SECTION 4: ACTIVE CAMPAIGNS HUB (Strict bg-white text-slate-700 Theme with headings in text-slate-900) */}
       <section
         id="campaigns"
         className="scroll-mt-16 min-h-[calc(100vh-4rem)] flex flex-col justify-center py-8 px-6 md:px-12 bg-white border-y border-slate-100 overflow-hidden"
@@ -288,7 +288,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                       <h3 className="font-heading font-extrabold text-sm md:text-base text-slate-900 group-hover:text-blue-600 transition-colors duration-200 leading-snug line-clamp-1">
                         {campaign.name}
                       </h3>
-                      <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">
+                      <p className="text-[11px] text-slate-550 leading-relaxed line-clamp-2">
                         {campaign.description}
                       </p>
 
@@ -308,7 +308,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                         </div>
                         <button
                           onClick={() => handleDonateNow(campaign.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold text-white bg-slate-900 hover:bg-blue-600 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer whitespace-nowrap"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all duration-200 cursor-pointer whitespace-nowrap"
                         >
                           <span>Donate Now</span>
                           <ArrowRight size={10} />
@@ -339,7 +339,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                   key={dotIdx}
                   onClick={() => setCampaignStartIndex(dotIdx)}
                   className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                    campaignStartIndex === dotIdx ? 'bg-blue-600 w-5' : 'bg-slate-300 hover:bg-slate-450'
+                    campaignStartIndex === dotIdx ? 'bg-blue-600 w-5' : 'bg-slate-300 hover:bg-slate-400'
                   }`}
                   aria-label={`Go to slide ${dotIdx + 1}`}
                 />
@@ -349,10 +349,10 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
         </div>
       </section>
 
-      {/* SECTION 5: CONTACT US (Adjusted Viewport Height to Show Footer) */}
+      {/* SECTION 5: CONTACT US (Strict bg-slate-100 text-slate-700 Theme with headings in text-slate-900) */}
       <section
         id="contact"
-        className="scroll-mt-16 min-h-[calc(100vh-16rem)] flex flex-col justify-center pt-8 pb-4 px-6 md:px-12 bg-slate-100 overflow-hidden"
+        className="scroll-mt-16 min-h-[calc(100vh-16rem)] flex flex-col justify-center pt-8 pb-4 px-6 md:px-12 bg-slate-100 text-slate-700 overflow-hidden"
       >
         <div className="max-w-4xl mx-auto flex flex-col gap-10 w-full">
           <div className="text-center flex flex-col items-center gap-2">
@@ -372,7 +372,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ type: 'spring', stiffness: 100, damping: 15 }}
-            className="p-6 md:p-8 rounded-3xl border border-slate-100 bg-white shadow-sm relative"
+            className="p-6 md:p-8 rounded-3xl border border-slate-150 bg-white shadow-sm relative"
           >
             <form onSubmit={handleContactSubmit} className="flex flex-col gap-5">
               <div className="grid md:grid-cols-2 gap-5">
@@ -387,7 +387,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@corporate.com"
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue transition-all duration-200 text-xs"
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue transition-all duration-200 text-xs text-slate-800"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -396,7 +396,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                   </label>
                   <select
                     id="contact-subject"
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue transition-all duration-200 text-xs"
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue transition-all duration-200 text-xs text-slate-800"
                   >
                     <option>General Inquiries</option>
                     <option>NGO Partnership Verification</option>
@@ -416,14 +416,14 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Describe your inquiry..."
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue transition-all duration-200 text-xs resize-none"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue transition-all duration-200 text-xs text-slate-800 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting || isSubmitted}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-trust-blue disabled:bg-slate-400 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>

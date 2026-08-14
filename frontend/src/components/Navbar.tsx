@@ -88,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
     <nav
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 px-6 md:px-12 flex items-center justify-between ${
         isNavbarDark
-          ? 'bg-slate-950/95 text-white backdrop-blur-md shadow-lg py-3'
+          ? 'bg-slate-950/95 backdrop-blur-md text-white border-b border-slate-800 py-3'
           : 'bg-transparent py-5'
       }`}
     >
