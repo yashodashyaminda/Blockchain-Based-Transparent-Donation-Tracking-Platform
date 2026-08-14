@@ -183,6 +183,62 @@ const initialCampaigns: Campaign[] = [
         status: 'Pending'
       }
     ]
+  },
+  {
+    id: 'proj-3',
+    name: 'Solar Grid Empowerment',
+    category: 'Disaster Relief',
+    description: 'Deploying off-grid solar generators and storage microgrids to rural healthcare facilities to assure power audit reliability.',
+    image: '/assets/images/4.png',
+    target: 12000,
+    raised: 9500,
+    ngoId: 'ngo-1',
+    ngoName: 'Global Care Alliance',
+    milestones: [
+      {
+        id: 'ms-3-1',
+        title: 'Solar Panels & Battery Procurement',
+        amount: 6000,
+        status: 'Released',
+        proofText: 'Sourced 40 highly efficient monocrystalline solar panels and modular lithium storage batteries.',
+        proofDoc: 'solar_procurement.pdf',
+        transactionHash: '0x12bcf88ea285f2ea71ca84ae9db193bde7cf2b489aef41b6c08adcf259abff22'
+      },
+      {
+        id: 'ms-3-2',
+        title: 'Microgrid Installation & Integration',
+        amount: 6000,
+        status: 'Pending'
+      }
+    ]
+  },
+  {
+    id: 'proj-4',
+    name: 'Ocean Reforestation Trust',
+    category: 'Disaster Relief',
+    description: 'Restoring critical mangrove forests and seagrass habitats to build resilient natural barriers against recurring storm surges.',
+    image: '/assets/images/4.png',
+    target: 6500,
+    raised: 2000,
+    ngoId: 'ngo-1',
+    ngoName: 'Global Care Alliance',
+    milestones: [
+      {
+        id: 'ms-4-1',
+        title: 'Mangrove Seedlings Sourcing',
+        amount: 3000,
+        status: 'Released',
+        proofText: 'Sourced 10,000 local mangrove seedlings. Initiated nursery operations.',
+        proofDoc: 'nursery_logistics.pdf',
+        transactionHash: '0xde9b3b8ea285f2ea71ca84ae9db193bde7cf2b489aef41b6c08adcf259ab9981'
+      },
+      {
+        id: 'ms-4-2',
+        title: 'Nursery Setup & Planting Phase',
+        amount: 3500,
+        status: 'Pending'
+      }
+    ]
   }
 ];
 
