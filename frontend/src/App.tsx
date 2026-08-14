@@ -50,6 +50,11 @@ function App() {
     }
   }, [currentRole, activePage]);
 
+  // Reset window scroll position on page navigation to prevent form misalignment
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+  }, [activePage]);
+
   // Page Routing Render Helper
   const renderPage = () => {
     switch (activePage) {

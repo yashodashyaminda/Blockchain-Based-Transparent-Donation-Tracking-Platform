@@ -129,7 +129,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center pt-28 pb-16 px-4 sm:px-6 md:px-12 relative overflow-hidden">
+    <div className="min-h-[calc(100vh-4rem)] mt-16 bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none">
         <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] rounded-full bg-trust-blue-light blur-[100px]" />
@@ -140,28 +140,28 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-        className="w-full max-w-2xl bg-white border border-slate-100 shadow-xl rounded-3xl overflow-hidden relative z-10"
+        className="w-full max-w-xl bg-white border border-slate-100 shadow-xl rounded-3xl overflow-hidden relative z-10"
       >
         {/* Top Role Selection Switcher Radio */}
-        <div className="p-4 sm:p-6 bg-slate-50/80 border-b border-slate-100 flex flex-col items-center">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">
+        <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-100 flex flex-col items-center">
+          <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">
             Select Account Category
           </span>
           
-          <div className="grid grid-cols-2 gap-3 w-full max-w-md p-1.5 bg-slate-200/60 rounded-2xl border border-slate-200">
+          <div className="grid grid-cols-2 gap-3 w-full max-w-md p-1 bg-slate-200/60 rounded-xl border border-slate-200">
             <button
               type="button"
               onClick={() => {
                 setSelectedRole('donor');
                 setErrorMessage('');
               }}
-              className={`py-3 px-4 rounded-xl text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-lg text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
                 selectedRole === 'donor'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <User size={16} className={selectedRole === 'donor' ? 'text-trust-blue' : ''} />
+              <User size={14} className={selectedRole === 'donor' ? 'text-trust-blue' : ''} />
               <span>Register as Donor</span>
             </button>
 
@@ -171,21 +171,21 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                 setSelectedRole('ngo');
                 setErrorMessage('');
               }}
-              className={`py-3 px-4 rounded-xl text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-lg text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
                 selectedRole === 'ngo'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <Award size={16} className={selectedRole === 'ngo' ? 'text-trust-blue' : ''} />
+              <Award size={14} className={selectedRole === 'ngo' ? 'text-trust-blue' : ''} />
               <span>Register as NGO</span>
             </button>
           </div>
         </div>
 
-        <div className="p-6 sm:p-8 md:p-10">
+        <div className="p-4 sm:p-5">
           {errorMessage && (
-            <div className="p-3.5 mb-6 bg-red-50 border border-red-100 text-red-600 text-xs rounded-2xl font-semibold flex items-center gap-2">
+            <div className="p-2.5 mb-4 bg-red-50 border border-red-100 text-red-600 text-xs rounded-2xl font-semibold flex items-center gap-2">
               <Lock size={14} className="shrink-0" />
               <span>{errorMessage}</span>
             </div>
@@ -195,23 +195,23 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
             {selectedRole === 'donor' ? (
               <motion.div
                 key="donor-form"
-                initial={{ opacity: 0, x: -15 }}
+                initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 15 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.15 }}
               >
-                <div className="mb-6">
-                  <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-slate-900">
+                <div className="mb-4 text-center">
+                  <h3 className="font-heading font-extrabold text-lg text-slate-900">
                     Create Donor Profile
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-[11px] text-slate-500 mt-0.5">
                     Track donations transparently and follow real-time project milestone releases.
                   </p>
                 </div>
 
-                <form onSubmit={handleDonorRegister} className="flex flex-col gap-5">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <form onSubmit={handleDonorRegister} className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                       Full Name
                     </label>
                     <div className="relative">
@@ -222,13 +222,13 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                         placeholder="Sarah Connor"
                         value={donorName}
                         onChange={(e) => setDonorName(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                        className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                       />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                       Email Address
                     </label>
                     <div className="relative">
@@ -239,14 +239,14 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                         placeholder="sarah@donor.org"
                         value={donorEmail}
                         onChange={(e) => setDonorEmail(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                        className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                       />
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-5">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <div className="grid sm:grid-cols-2 gap-3.5">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Password
                       </label>
                       <div className="relative">
@@ -257,13 +257,13 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                           placeholder="••••••••"
                           value={donorPassword}
                           onChange={(e) => setDonorPassword(e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                          className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Confirm Password
                       </label>
                       <div className="relative">
@@ -274,7 +274,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                           placeholder="••••••••"
                           value={donorConfirmPassword}
                           onChange={(e) => setDonorConfirmPassword(e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                          className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>
                     </div>
@@ -282,7 +282,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
 
                   <button
                     type="submit"
-                    className="w-full py-4 rounded-xl bg-slate-900 hover:bg-trust-blue text-white font-heading text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-300 mt-2 glow-blue cursor-pointer"
+                    className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-trust-blue text-white font-heading text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-300 mt-2 glow-blue cursor-pointer"
                   >
                     Complete Donor Registration
                   </button>
@@ -291,24 +291,24 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
             ) : (
               <motion.div
                 key="ngo-form"
-                initial={{ opacity: 0, x: 15 }}
+                initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -15 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.15 }}
               >
-                <div className="mb-6">
-                  <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-slate-900">
+                <div className="mb-4 text-center">
+                  <h3 className="font-heading font-extrabold text-lg text-slate-900">
                     Register NGO Workspace
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-[11px] text-slate-500 mt-0.5">
                     Submit organizational details & compliance documents to launch transparent campaigns.
                   </p>
                 </div>
 
-                <form onSubmit={handleNgoRegister} className="flex flex-col gap-5">
-                  <div className="grid sm:grid-cols-2 gap-5">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <form onSubmit={handleNgoRegister} className="flex flex-col gap-3">
+                  <div className="grid sm:grid-cols-2 gap-3.5">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Organization Name
                       </label>
                       <div className="relative">
@@ -319,13 +319,13 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                           placeholder="Global Care Alliance"
                           value={ngoName}
                           onChange={(e) => setNgoName(e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                          className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Registration Number
                       </label>
                       <input
@@ -334,14 +334,14 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                         placeholder="REG-2026-881A"
                         value={ngoRegNumber}
                         onChange={(e) => setNgoRegNumber(e.target.value)}
-                        className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                       />
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-5">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <div className="grid sm:grid-cols-2 gap-3.5">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Contact Info / Phone
                       </label>
                       <div className="relative">
@@ -351,13 +351,13 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                           placeholder="+1 (555) 019-2831"
                           value={ngoContactInfo}
                           onChange={(e) => setNgoContactInfo(e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                          className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Official NGO Email
                       </label>
                       <div className="relative">
@@ -368,15 +368,15 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                           placeholder="info@globalcare.org"
                           value={ngoEmail}
                           onChange={(e) => setNgoEmail(e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                          className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-5">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <div className="grid sm:grid-cols-2 gap-3.5">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Password
                       </label>
                       <div className="relative">
@@ -387,13 +387,13 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                           placeholder="••••••••"
                           value={ngoPassword}
                           onChange={(e) => setNgoPassword(e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                          className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                         Confirm Password
                       </label>
                       <div className="relative">
@@ -404,22 +404,22 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                           placeholder="••••••••"
                           value={ngoConfirmPassword}
                           onChange={(e) => setNgoConfirmPassword(e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-sm transition-all duration-200"
+                          className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Verification document upload */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {/* Verification document upload - Compact height */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                       Verification Document (Audit PDF)
                     </label>
                     <div
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
-                      className={`relative border-2 border-dashed rounded-2xl p-5 flex flex-col items-center justify-center text-center transition-all duration-300 min-h-[140px] ${
+                      className={`relative border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all duration-300 min-h-[90px] ${
                         isDragOver
                           ? 'border-milestone-green bg-emerald-50/20'
                           : uploadState === 'completed'
@@ -436,26 +436,26 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                       />
 
                       {uploadState === 'idle' && (
-                        <label htmlFor="document-upload" className="cursor-pointer flex flex-col items-center gap-2 w-full">
-                          <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm">
-                            <UploadCloud size={18} />
+                        <label htmlFor="document-upload" className="cursor-pointer flex flex-col items-center gap-1 w-full">
+                          <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm">
+                            <UploadCloud size={16} />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-slate-700">Click or Drag PDF audit file here</p>
-                            <p className="text-[9px] text-slate-400 mt-0.5">Accepts registration certificate PDF (Max size 10MB)</p>
+                            <p className="text-[11px] font-bold text-slate-700">Click or Drag PDF audit file here</p>
+                            <p className="text-[8px] text-slate-400">Accepts registration certificate PDF (Max size 10MB)</p>
                           </div>
                         </label>
                       )}
 
                       {uploadState === 'uploading' && (
-                        <div className="flex flex-col items-center gap-3 w-full max-w-[80%]">
-                          <RefreshCw className="animate-spin text-trust-blue" size={20} />
-                          <div className="w-full flex flex-col gap-1">
-                            <div className="flex justify-between text-[9px] font-bold text-slate-500">
+                        <div className="flex flex-col items-center gap-2 w-full max-w-[80%]">
+                          <RefreshCw className="animate-spin text-trust-blue" size={16} />
+                          <div className="w-full flex flex-col gap-0.5">
+                            <div className="flex justify-between text-[8px] font-bold text-slate-500">
                               <span>PROCESSING PDF...</span>
                               <span>{uploadProgress}%</span>
                             </div>
-                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
+                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
                               <div className="h-full bg-trust-blue transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
                             </div>
                           </div>
@@ -463,15 +463,15 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                       )}
 
                       {uploadState === 'completed' && uploadedFile && (
-                        <div className="flex items-center gap-3 w-full px-2">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm shrink-0">
-                            <FileText size={16} />
+                        <div className="flex items-center gap-2 w-full px-1">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm shrink-0">
+                            <FileText size={14} />
                           </div>
                           <div className="text-left flex-grow min-w-0">
-                            <p className="text-xs font-bold text-slate-800 truncate">{uploadedFile.name}</p>
-                            <p className="text-[9px] text-slate-400">{uploadedFile.size} • Audit PDF Ready</p>
+                            <p className="text-[11px] font-bold text-slate-800 truncate">{uploadedFile.name}</p>
+                            <p className="text-[8px] text-slate-400">{uploadedFile.size} • Audit PDF Ready</p>
                           </div>
-                          <CheckCircle className="text-emerald-500 shrink-0" size={18} />
+                          <CheckCircle className="text-emerald-500 shrink-0" size={16} />
                         </div>
                       )}
                     </div>
@@ -480,7 +480,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                   <button
                     type="submit"
                     disabled={uploadState !== 'completed'}
-                    className="w-full py-4 rounded-xl bg-slate-900 hover:bg-trust-blue disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-heading text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-300 mt-2 glow-blue cursor-pointer"
+                    className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-trust-blue disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-heading text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-300 mt-1 glow-blue cursor-pointer"
                   >
                     Submit NGO Registration
                   </button>
@@ -489,8 +489,8 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
             )}
           </AnimatePresence>
 
-          {/* Form Footer Switch Link */}
-          <div className="text-center mt-8 pt-6 border-t border-slate-100">
+          {/* Form Footer Switch Link - Compact spacing */}
+          <div className="text-center mt-4 pt-3 border-t border-slate-100">
             <p className="text-xs text-slate-500">
               Already have an account?{' '}
               <button

@@ -12,6 +12,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('hero');
 
+  // Force active dark scrolled navbar layout on login and register pages immediately
+  const isNavbarDark = isScrolled || activePage === 'login' || activePage === 'register';
+
   // Sticky navbar scroll state transition
   useEffect(() => {
     const handleScroll = () => {
@@ -84,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
   return (
     <nav
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 px-6 md:px-12 flex items-center justify-between ${
-        isScrolled
+        isNavbarDark
           ? 'bg-slate-950/95 text-white backdrop-blur-md shadow-lg py-3'
           : 'bg-transparent py-5'
       }`}
@@ -100,7 +103,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         <div>
           <span
             className={`font-heading font-extrabold text-lg tracking-tight transition-colors duration-200 ${
-              isScrolled ? 'text-white group-hover:text-blue-400' : 'text-slate-900 group-hover:text-blue-600'
+              isNavbarDark ? 'text-white group-hover:text-blue-400' : 'text-slate-900 group-hover:text-blue-600'
             }`}
           >
             ChainTrust
@@ -117,10 +120,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           onClick={() => scrollToSection('hero')}
           className={`transition-colors duration-200 cursor-pointer ${
             activePage === 'home' && activeSection === 'hero'
-              ? isScrolled
+              ? isNavbarDark
                 ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
                 : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isScrolled
+              : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
           }`}
@@ -132,10 +135,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           onClick={() => scrollToSection('goal')}
           className={`transition-colors duration-200 cursor-pointer ${
             activePage === 'home' && activeSection === 'goal'
-              ? isScrolled
+              ? isNavbarDark
                 ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
                 : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isScrolled
+              : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
           }`}
@@ -147,10 +150,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           onClick={() => scrollToSection('about')}
           className={`transition-colors duration-200 cursor-pointer ${
             activePage === 'home' && activeSection === 'about'
-              ? isScrolled
+              ? isNavbarDark
                 ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
                 : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isScrolled
+              : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
           }`}
@@ -162,10 +165,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           onClick={() => scrollToSection('campaigns')}
           className={`transition-colors duration-200 cursor-pointer ${
             activePage === 'home' && activeSection === 'campaigns'
-              ? isScrolled
+              ? isNavbarDark
                 ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
                 : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isScrolled
+              : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
           }`}
@@ -177,10 +180,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           onClick={() => scrollToSection('contact')}
           className={`transition-colors duration-200 cursor-pointer ${
             activePage === 'home' && activeSection === 'contact'
-              ? isScrolled
+              ? isNavbarDark
                 ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
                 : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isScrolled
+              : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
           }`}
@@ -200,10 +203,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               else setActivePage('donor-dashboard');
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors duration-200 cursor-pointer ${
-              isScrolled ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+              isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
             }`}
           >
-            <LayoutDashboard size={14} className={isScrolled ? 'text-slate-300' : 'text-slate-600'} />
+            <LayoutDashboard size={14} className={isNavbarDark ? 'text-slate-300' : 'text-slate-600'} />
             <span>Workspace</span>
           </button>
         )}
@@ -213,7 +216,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           <button
             onClick={() => scrollToSection('hero')}
             className={`p-2 rounded-xl transition-colors duration-200 cursor-pointer ${
-              isScrolled ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+              isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
             }`}
             title="Go to Home"
           >
@@ -225,7 +228,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         <button
           onClick={resetState}
           className={`p-2 rounded-xl transition-all duration-300 hover:rotate-180 cursor-pointer ${
-            isScrolled ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+            isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
           }`}
           title="Reset Platform State"
         >
@@ -237,7 +240,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           <div className="flex items-center gap-2">
             <div
               className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${
-                isScrolled
+                isNavbarDark
                   ? 'bg-slate-800 text-blue-400 border-slate-700'
                   : 'bg-blue-50 text-blue-700 border-blue-100'
               }`}
@@ -263,7 +266,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
             <button
               onClick={disconnectWallet}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${
-                isScrolled
+                isNavbarDark
                   ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400'
                   : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600'
               }`}
@@ -288,7 +291,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all active:scale-95 cursor-pointer ${
                 activePage === 'login'
                   ? 'bg-blue-600 text-white shadow-blue-500/20 shadow-lg border border-blue-600 font-semibold'
-                  : isScrolled
+                  : isNavbarDark
                   ? 'border border-slate-700 shadow-sm bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-blue-400 font-semibold hover:shadow-md'
                   : 'border border-slate-200 shadow-sm bg-white/60 hover:bg-white text-slate-800 hover:text-blue-600 font-semibold hover:shadow-md'
               }`}
@@ -303,7 +306,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               className={`px-4 py-2 rounded-xl transition-all active:scale-95 cursor-pointer ${
                 activePage === 'register'
                   ? 'bg-blue-600 text-white shadow-blue-500/20 shadow-lg border border-blue-600 font-semibold'
-                  : isScrolled
+                  : isNavbarDark
                   ? 'border border-slate-700 shadow-sm bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-blue-400 font-semibold hover:shadow-md'
                   : 'border border-slate-200 shadow-sm bg-white/60 hover:bg-white text-slate-800 hover:text-blue-600 font-semibold hover:shadow-md'
               }`}
