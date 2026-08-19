@@ -15,11 +15,19 @@ exports.createProof = async (req, res) => {
     if (!campaign) {
       return res.status(404).json({
         success: false,
-        message: 'Campaign associated with this proof does not exist',
+        message: 'Campaign not found',
       });
     }
 
-    // 2. Authorization Guard: Check if the logged-in NGO is the owner of the campaign
+    // 2. Check if the campaign's status is Active
+    if (campaign.status !== 'Active') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot upload proof for a campaign that is not active.',
+      });
+    }
+
+    // 3. Authorization Guard: Check if the logged-in NGO is the owner of the campaign
     if (campaign.ngoId.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
