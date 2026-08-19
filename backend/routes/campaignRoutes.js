@@ -10,6 +10,8 @@ const {
 } = require('../controllers/campaignController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
+const upload = require('../middleware/multerMiddleware');
+
 /**
  * Campaign Routes definition
  * Root base URL: /api/campaigns
@@ -19,18 +21,18 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 router.get('/', getCampaigns);
 
 // Private route: Create a campaign (Only NGO role)
-router.post('/', verifyToken, checkRole(['NGO', 'Admin']), createCampaign);
+router.post('/', verifyToken, upload.single('file'), checkRole(['NGO', 'Admin']), createCampaign);
 
 // CRITICAL ROUTE PRIORITY: 
 // Place the specific admin approval route BEFORE any generic /:id route 
 // to prevent Express from misinterpreting "approve" as a parameter.
-router.put('/:id/approve', verifyToken, checkRole(['Admin']), approveCampaign);
+//router.put('/:id/approve', verifyToken, checkRole(['Admin']), approveCampaign)
 
 // Public route: Retrieve campaign details by ID
 router.get('/:id', getCampaignById);
 
 // Private route: Update and Delete campaign (Only NGO owner or Admin)
-router.put('/:id', verifyToken, checkRole(['NGO', 'Admin']), updateCampaign);
+router.put('/:id', verifyToken, upload.single('file'), checkRole(['NGO', 'Admin']), updateCampaign);
 router.delete('/:id', verifyToken, checkRole(['NGO', 'Admin']), deleteCampaign);
 
 module.exports = router;

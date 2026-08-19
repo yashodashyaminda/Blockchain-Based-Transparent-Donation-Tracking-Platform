@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, forgotPassword } = require('../controllers/authController');
+const {
+    register,
+    login,
+    forgotPassword,
+    verifyNGO // <-- Import new verify function
+} = require('../controllers/authController');
+const { verifyToken, checkRole } = require('../middleware/authMiddleware'); // <-- Auth middlewares
 
 /**
  * Authentication Routes definition
@@ -15,5 +21,8 @@ router.post('/login', login);
 
 // Route to request password reset token/mail stub
 router.post('/forgotpassword', forgotPassword);
+
+// 👉 Admin Route: Approve / Verify pending NGO account
+router.put('/verify-ngo/:id', verifyToken, checkRole(['Admin']), verifyNGO);
 
 module.exports = router;

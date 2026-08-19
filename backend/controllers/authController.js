@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+
 /**
  * Helper function to generate JWT token for a specific user ID
  * @param {string} id - Database user ID
@@ -173,6 +174,48 @@ exports.forgotPassword = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error occurred while processing forgot password request.',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Admin approves / verifies a pending NGO account
+ * @route   PUT /api/auth/verify-ngo/:id
+ * @access  Private (Admin only)
+ */
+exports.verifyNGO = async (req, res) => {
+  try {
+    const ngoUser = await User.findById(req.params.id);
+
+    if (!ngoUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User record not found',
+      });
+    }
+
+    if (ngoUser.role !== 'NGO') {
+      return res.status(400).json({
+        success: false,
+        message: 'Specified user is not an NGO account',
+      });
+    }
+
+    // Set isVerified to true (Approved)
+    ngoUser.isVerified = true;
+    await ngoUser.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `NGO account '${ngoUser.name}' has been verified successfully!`,
+      data: ngoUser,
+    });
+  } catch (error) {
+    console.error('Verify NGO Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during NGO verification',
       error: error.message,
     });
   }
