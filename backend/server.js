@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 
 // 1. Load environment variables from .env file
@@ -52,4 +53,15 @@ process.on('unhandledRejection', (err, promise) => {
   console.log(`Unhandled Rejection Error: ${err.message}`);
   // Close server & exit process
   server.close(() => process.exit(1));
+});
+
+// server.js ඇතුළේ:
+const { listenToBlockchainEvents } = require('./services/web3Service');
+
+// MongoDB connect වුනාට පස්සේ මේක call කරන්න
+mongoose.connection.once('open', () => {
+  console.log('MongoDB Connected');
+
+  // Start listening to Blockchain Events
+  listenToBlockchainEvents();
 });
