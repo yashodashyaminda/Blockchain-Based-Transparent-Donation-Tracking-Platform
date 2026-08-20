@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
+import { useAuth } from '../../context/AuthContext';
+import axiosInstance from '../../utils/axiosInstance';
 import type { Campaign } from '../../context/Web3Context';
 import { Award, AlertTriangle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw, Wallet } from 'lucide-react';
 
 export const NgoDashboard: React.FC = () => {
-  const { activeNgoId, ngos, campaigns, addCampaign, addMilestoneProof, isWalletConnected, walletAddress, bindWalletToProfile } = useWeb3();
+  const { campaigns, addCampaign, addMilestoneProof, isWalletConnected, walletAddress, bindWalletToProfile } = useWeb3();
+  const { user, login } = useAuth();
 
-  // Find active NGO profile details
-  const activeNgo = ngos.find(n => n.id === activeNgoId) || ngos[0]; // fallback
-  const isVerified = activeNgo?.isVerified || false;
+  const isVerified = user?.isVerified || false;
 
   // Filter campaigns created by this NGO
-  const myCampaigns = campaigns.filter(c => c.ngoId === activeNgo?.id);
+  const myCampaigns = campaigns.filter(c => c.ngoId === user?.id);
 
   // Form states: Add Project
   const [projName, setProjName] = useState('');
@@ -29,6 +30,12 @@ export const NgoDashboard: React.FC = () => {
   const [proofUploadState, setProofUploadState] = useState<'idle' | 'uploading' | 'completed'>('idle');
   const [proofUploadProgress, setProofUploadProgress] = useState(0);
   const [proofSubmittedSuccess, setProofSubmittedSuccess] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Resubmit state for rejected verification
+  const [resubmitFile, setResubmitFile] = useState<File | null>(null);
+  const [isResubmitting, setIsResubmitting] = useState(false);
 
   // Selected Campaign milestones lookup helper
   const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
@@ -56,46 +63,174 @@ export const NgoDashboard: React.FC = () => {
     setTimeout(() => setProjectCreatedSuccess(false), 4000);
   };
 
-  // Drag over proof upload helper
+  // Trigger file selection programmatically when user clicks container
   const triggerProofUpload = () => {
-    if (proofUploadState !== 'idle') return;
-    setProofUploadState('uploading');
-    setProofUploadProgress(0);
-    setProofFileName('milestone_contract_invoice_IPFS.pdf');
-
-    const interval = setInterval(() => {
-      setProofUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setProofUploadState('completed');
-          return 100;
-        }
-        return prev + 20;
-      });
-    }, 1500);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
-  // Milestone submit handler
-  const handleMilestoneProofSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setProofFileName(file.name);
+      setProofUploadState('completed');
+    }
+  };
+
+  // Milestone submit handler using FormData
+  const handleMilestoneProofSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCampaignId || !selectedMilestoneId || !proofText || proofUploadState !== 'completed') return;
+    if (!selectedCampaignId || !selectedMilestoneId || !proofText || !selectedFile) return;
 
-    addMilestoneProof(
-      selectedCampaignId,
-      selectedMilestoneId,
-      proofText,
-      proofFileName
-    );
+    setProofUploadState('uploading');
+    setProofUploadProgress(20);
 
-    setProofSubmittedSuccess(true);
-    setSelectedCampaignId('');
-    setSelectedMilestoneId('');
-    setProofText('');
-    setProofFileName('');
-    setProofUploadState('idle');
+    try {
+      const formData = new FormData();
+      formData.append('campaignId', selectedCampaignId);
+      formData.append('title', proofText); // Serves as title in proof model schema
+      formData.append('file', selectedFile);
 
-    setTimeout(() => setProofSubmittedSuccess(false), 4000);
+      setProofUploadProgress(50);
+
+      const response = await axiosInstance.post('/proofs', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setProofUploadProgress(100);
+
+      if (response.data && response.data.success) {
+        // Also call Web3 local context sync to update UI state
+        addMilestoneProof(
+          selectedCampaignId,
+          selectedMilestoneId,
+          proofText,
+          proofFileName
+        );
+
+        setProofSubmittedSuccess(true);
+        setSelectedCampaignId('');
+        setSelectedMilestoneId('');
+        setProofText('');
+        setProofFileName('');
+        setSelectedFile(null);
+        setProofUploadState('idle');
+
+        setTimeout(() => setProofSubmittedSuccess(false), 4000);
+      }
+    } catch (err: any) {
+      setProofUploadState('completed');
+      alert(err.response?.data?.message || 'Failed to upload proof document');
+    }
   };
+
+  // Handle verification document re-submission when rejected
+  const handleResubmitDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resubmitFile) return;
+
+    setIsResubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', resubmitFile);
+
+      const response = await axiosInstance.put('/auth/resubmit-document', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data && response.data.success) {
+        alert('Document re-submitted successfully. Pending Admin review.');
+        if (user) {
+          login(localStorage.getItem('token') || '', {
+            ...user,
+            verificationStatus: 'Pending',
+          });
+        }
+        setResubmitFile(null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to re-submit document');
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
+
+  if (!isVerified) {
+    const isRejected = user?.verificationStatus === 'Rejected';
+
+    return (
+      <div className="min-h-screen bg-slate-50 pt-28 pb-16 px-6 md:px-12 relative flex items-center justify-center">
+        {/* Background gradients */}
+        <div className="absolute inset-0 z-0 overflow-hidden opacity-30 pointer-events-none">
+          <div className="absolute top-[20%] left-[5%] w-[300px] h-[300px] rounded-full bg-trust-blue-light blur-[100px]" />
+          <div className="absolute bottom-[30%] right-[5%] w-[300px] h-[300px] rounded-full bg-milestone-green-light blur-[100px]" />
+        </div>
+
+        {isRejected ? (
+          <div className="max-w-md w-full bg-white border border-red-200 rounded-3xl p-8 text-center flex flex-col items-center gap-6 shadow-xl relative z-10">
+            <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-200 text-red-500 flex items-center justify-center shadow-sm">
+              <AlertTriangle size={32} className="animate-bounce" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-heading font-extrabold text-xl text-slate-900 tracking-tight">Registration Document Rejected</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Your Registration Document was Rejected by Admin. Please upload a valid legal PDF or image verification document to request a re-audit.
+              </p>
+            </div>
+
+            <form onSubmit={handleResubmitDocument} className="w-full flex flex-col gap-4">
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                required
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    setResubmitFile(e.target.files[0]);
+                  }
+                }}
+                className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 border border-slate-200 rounded-xl p-1 bg-slate-50"
+              />
+
+              <button
+                type="submit"
+                disabled={!resubmitFile || isResubmitting}
+                className="w-full py-3 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-red-600 shadow-md transition-all duration-300 disabled:bg-slate-300 cursor-pointer"
+              >
+                {isResubmitting ? 'Uploading to IPFS...' : 'Re-submit Verification Document'}
+              </button>
+            </form>
+
+            <div className="w-full h-px bg-slate-100" />
+            <div className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-700">
+              Current Status: Action Required (Rejected)
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-md w-full bg-white border border-amber-200 rounded-3xl p-8 text-center flex flex-col items-center gap-6 shadow-xl glow-gold relative z-10">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-500 flex items-center justify-center shadow-sm">
+              <AlertTriangle size={32} className="animate-pulse" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-heading font-extrabold text-xl text-slate-900 tracking-tight">NGO Verification Pending</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Your registration documents are currently being audited by System Administrators. You cannot create campaigns or upload milestone proofs until an Admin approves your organization's profile.
+              </p>
+            </div>
+            <div className="w-full h-px bg-slate-100" />
+            <div className="px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-100/50 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+              Current Status: Auditing Profile Queue
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pt-28 pb-16 px-6 md:px-12 relative">
@@ -116,7 +251,7 @@ export const NgoDashboard: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-heading font-extrabold text-xl md:text-2xl text-slate-900">
-                  {activeNgo?.name || 'My NGO Hub'}
+                  {user?.name || 'My NGO Hub'}
                 </h2>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
                   isVerified 
@@ -127,7 +262,7 @@ export const NgoDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Official Email: {activeNgo?.email || 'N/A'} • Bound NGO Wallet: <span className="font-mono text-slate-700 font-semibold">{walletAddress || activeNgo?.wallet || 'Unbound'}</span>
+                Official Email: {user?.email || 'N/A'} • Bound NGO Wallet: <span className="font-mono text-slate-700 font-semibold">{walletAddress || user?.walletAddress || 'Unbound'}</span>
               </p>
             </div>
           </div>
@@ -178,41 +313,10 @@ export const NgoDashboard: React.FC = () => {
           </motion.div>
         )}
 
-        {/* WORKSPACE AREA WITH STATE LOCK OVERLAY */}
+        {/* WORKSPACE AREA */}
         <div className="relative">
-          <AnimatePresence>
-            {!isVerified && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-40 bg-white/60 backdrop-blur-[4px] rounded-3xl flex items-center justify-center p-6 border border-slate-100/50 shadow-inner"
-              >
-                <motion.div
-                  initial={{ scale: 0.9, y: 15 }}
-                  animate={{ scale: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 120, damping: 18 }}
-                  className="max-w-md bg-white border border-amber-200 rounded-3xl p-8 text-center flex flex-col items-center gap-4 shadow-xl glow-gold"
-                >
-                  <div className="w-14 h-14 rounded-full bg-amber-50 border border-amber-200 text-amber-500 flex items-center justify-center">
-                    <AlertTriangle size={24} className="animate-pulse" />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <h3 className="font-heading font-extrabold text-lg text-slate-900">NGO Verification Pending</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      Your registration documents are currently being audited by System Administrators. Campaign creation and milestone proof submission will activate automatically once approved.
-                    </p>
-                  </div>
-                  <div className="px-4 py-2 rounded-xl bg-amber-50 border border-amber-100/50 text-[10px] font-semibold text-amber-700">
-                    Audit queue position: #2 in progress
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* MAIN COMPONENTS GRID */}
-          <div className={`grid lg:grid-cols-12 gap-8 ${!isVerified ? 'pointer-events-none select-none filter blur-[1px]' : ''}`}>
+          <div className="grid lg:grid-cols-12 gap-8">
             
             {/* MODULE A: ADD PROJECT PLATFORM FORM */}
             <div className="lg:col-span-5 flex flex-col gap-6">
@@ -385,6 +489,13 @@ export const NgoDashboard: React.FC = () => {
                           : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-trust-blue'
                       }`}
                     >
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".pdf,image/*"
+                        style={{ display: 'none' }}
+                      />
                       {proofUploadState === 'idle' && (
                         <div className="flex flex-col items-center gap-1.5">
                           <UploadCloud size={18} className="text-slate-400" />

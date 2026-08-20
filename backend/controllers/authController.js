@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { uploadFileToIPFS } = require('../services/ipfsService');
 
 
 /**
@@ -19,7 +20,7 @@ const generateToken = (id) => {
  * @access  Public
  */
 exports.register = async (req, res) => {
-  const { name, email, password, role, walletAddress } = req.body;
+  const { name, email, password, role, walletAddress, registrationNumber } = req.body;
 
   try {
     // 1. Check if user already exists in the database
@@ -34,7 +35,13 @@ exports.register = async (req, res) => {
     // 2. NGO specific check: NGOs are default not verified until admin reviews documents
     const isVerified = role === 'NGO' ? false : true;
 
-    // 3. Create the user database record (password gets hashed pre-save in model)
+    // 3. Upload verification document to IPFS if NGO and file is present
+    let documentIpfsCID = '';
+    if (role === 'NGO' && req.file) {
+      documentIpfsCID = await uploadFileToIPFS(req.file);
+    }
+
+    // 4. Create the user database record (password gets hashed pre-save in model)
     user = await User.create({
       name,
       email,
@@ -42,12 +49,14 @@ exports.register = async (req, res) => {
       role,
       walletAddress: walletAddress || '',
       isVerified,
+      registrationNumber: registrationNumber || '',
+      documentIpfsCID,
     });
 
-    // 4. Generate signed JWT token
+    // 5. Generate signed JWT token
     const token = generateToken(user._id);
 
-    // 5. Send response payload containing token and user roles
+    // 6. Send response payload containing token and user roles
     return res.status(201).json({
       success: true,
       token,
@@ -58,6 +67,8 @@ exports.register = async (req, res) => {
         role: user.role,
         walletAddress: user.walletAddress,
         isVerified: user.isVerified,
+        registrationNumber: user.registrationNumber,
+        documentIpfsCID: user.documentIpfsCID,
       },
     });
   } catch (error) {
@@ -218,5 +229,86 @@ exports.verifyNGO = async (req, res) => {
       message: 'Server error during NGO verification',
       error: error.message,
     });
+  }
+};
+
+/**
+ * @desc    Get all users (Admin only) - Supports query filters (e.g. ?role=NGO&isVerified=false)
+ * @route   GET /api/auth/users
+ * @access  Private (Admin only)
+ */
+exports.getUsers = async (req, res) => {
+  try {
+    // URL එකෙන් එන ෆිල්ටර්ස් අල්ලගන්නවා (උදා: role='NGO', isVerified='false')
+    const query = { ...req.query };
+
+    // DB එකෙන් අදාළ යූසර්ස්ලව ගන්නවා (Password එක යවන්නේ නෑ Security නිසා)
+    const users = await User.find(query).select('-password');
+
+    return res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  } catch (error) {
+    console.error('Get Users Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching users',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Admin rejects a pending NGO account
+ * @route   PUT /api/auth/reject-ngo/:id
+ * @access  Private (Admin only)
+ */
+exports.rejectNGO = async (req, res) => {
+  try {
+    const ngoUser = await User.findById(req.params.id);
+    if (!ngoUser) {
+      return res.status(404).json({ success: false, message: 'NGO not found' });
+    }
+
+    ngoUser.isVerified = false;
+    ngoUser.verificationStatus = 'Rejected'; // Status tag
+    await ngoUser.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `NGO '${ngoUser.name}' verification was rejected.`,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    NGO re-submits registration verification document if rejected
+ * @route   PUT /api/auth/resubmit-document
+ * @access  Private (NGO only)
+ */
+exports.resubmitDocument = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'NGO') {
+      return res.status(400).json({ success: false, message: 'Invalid NGO account' });
+    }
+
+    if (req.file) {
+      const documentIpfsCID = await uploadFileToIPFS(req.file);
+      user.documentIpfsCID = documentIpfsCID;
+      user.verificationStatus = 'Pending'; // Reset back to Pending
+      await user.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Document re-submitted successfully. Pending Admin review.',
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

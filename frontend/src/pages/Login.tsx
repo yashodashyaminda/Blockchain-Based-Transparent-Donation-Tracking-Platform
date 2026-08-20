@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useWeb3 } from '../context/Web3Context';
+import { useAuth } from '../context/AuthContext';
+import axiosInstance from '../utils/axiosInstance';
 import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
 
 interface LoginProps {
@@ -8,7 +9,7 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ setActivePage }) => {
-  const { loginUser } = useWeb3();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,25 +28,32 @@ export const Login: React.FC<LoginProps> = ({ setActivePage }) => {
     setIsLoading(true);
 
     try {
-      // Perform Web2 Auth check
-      const result = await loginUser(email, password);
+      // Make backend API login call
+      const response = await axiosInstance.post('/auth/login', { email, password });
       setIsLoading(false);
 
-      if (result.success && result.role) {
-        // Conditionally redirect based on returned user role
-        if (result.role === 'ngo') {
+      if (response.data && response.data.success) {
+        const { token, user } = response.data;
+
+        // Save token and user details to AuthContext session
+        login(token, user);
+
+        // Redirect based on normalized role
+        const roleLower = user.role.toLowerCase();
+        if (roleLower === 'ngo') {
           setActivePage('ngo-dashboard');
-        } else if (result.role === 'admin') {
+        } else if (roleLower === 'admin') {
           setActivePage('admin-dashboard');
         } else {
           setActivePage('donor-dashboard');
         }
       } else {
-        setError(result.message || 'Invalid email or password');
+        setError(response.data.message || 'Invalid email or password');
       }
     } catch (err: any) {
       setIsLoading(false);
-      setError('Authentication failed. Please check your credentials.');
+      const errMsg = err.response?.data?.message || 'Authentication failed. Please check your credentials.';
+      setError(errMsg);
     }
   };
 

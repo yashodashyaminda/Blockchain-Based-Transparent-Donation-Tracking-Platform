@@ -7,7 +7,7 @@ import { NgoDashboard } from './pages/ngo/NgoDashboard';
 import { DonorDashboard } from './pages/donor/DonorDashboard';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { Footer } from './components/Footer';
-import { RoleSwitcher } from './components/RoleSwitcher';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { useWeb3 } from './context/Web3Context';
 import Lenis from 'lenis';
 
@@ -55,7 +55,7 @@ function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
   }, [activePage]);
 
-  // Page Routing Render Helper
+  // Page Routing Render Helper with ProtectedRoute Wrappers
   const renderPage = () => {
     switch (activePage) {
       case 'login':
@@ -68,16 +68,26 @@ function App() {
           />
         );
       case 'ngo-dashboard':
-        return <NgoDashboard />;
+        return (
+          <ProtectedRoute allowedRoles={['NGO']} setActivePage={setActivePage}>
+            <NgoDashboard />
+          </ProtectedRoute>
+        );
       case 'donor-dashboard':
         return (
-          <DonorDashboard 
-            preSelectedCampaignId={selectedCampaignId} 
-            setPreSelectedCampaignId={setSelectedCampaignId} 
-          />
+          <ProtectedRoute allowedRoles={['Donor']} setActivePage={setActivePage}>
+            <DonorDashboard 
+              preSelectedCampaignId={selectedCampaignId} 
+              setPreSelectedCampaignId={setSelectedCampaignId} 
+            />
+          </ProtectedRoute>
         );
       case 'admin-dashboard':
-        return <AdminDashboard />;
+        return (
+          <ProtectedRoute allowedRoles={['Admin']} setActivePage={setActivePage}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        );
       default:
         return (
           <Home 
@@ -100,9 +110,6 @@ function App() {
 
       {/* Footer */}
       <Footer />
-
-      {/* Persistent floating dashboard simulation role switcher */}
-      <RoleSwitcher />
     </div>
   );
 }

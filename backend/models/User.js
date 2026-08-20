@@ -44,6 +44,21 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // Specifically useful for manual NGO compliance/admin approval
     },
+    registrationNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    documentIpfsCID: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    verificationStatus: {
+      type: String,
+      enum: ['Pending', 'Approved', 'Rejected'],
+      default: 'Pending',
+    },
   },
   {
     timestamps: true, // Auto-adds createdAt and updatedAt fields

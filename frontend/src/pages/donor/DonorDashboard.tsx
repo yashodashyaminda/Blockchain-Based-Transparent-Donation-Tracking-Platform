@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
+import { useAuth } from '../../context/AuthContext';
 import type { Campaign } from '../../context/Web3Context';
 import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw, ShieldCheck } from 'lucide-react';
 
@@ -10,7 +11,8 @@ interface DonorDashboardProps {
 }
 
 export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampaignId, setPreSelectedCampaignId }) => {
-  const { campaigns, donateToCampaign, isWalletConnected, walletAddress, transactions, donorProfile, bindWalletToProfile } = useWeb3();
+  const { campaigns, donateToCampaign, isWalletConnected, walletAddress, transactions, bindWalletToProfile } = useWeb3();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'map' | 'ledger'>('browse');
 
   // Search filter
@@ -95,7 +97,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 Donor Tracking Room
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Account: <span className="font-semibold text-slate-800">{donorProfile?.name || 'Sarah Connor'}</span> ({donorProfile?.email || 'donor@email.com'}) • Wallet Address: <span className="font-mono text-slate-600 font-semibold">{walletAddress ? `${walletAddress.substring(0, 10)}...` : 'Unbound'}</span>
+                Account: <span className="font-semibold text-slate-800">{user?.name || 'Sarah Connor'}</span> ({user?.email || 'donor@email.com'}) • Wallet Address: <span className="font-mono text-slate-600 font-semibold">{walletAddress || user?.walletAddress || 'Unbound'}</span>
               </p>
             </div>
           </div>

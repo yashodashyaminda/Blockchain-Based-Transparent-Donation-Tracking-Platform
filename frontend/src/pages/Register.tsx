@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../context/Web3Context';
+import { useAuth } from '../context/AuthContext';
+import axiosInstance from '../utils/axiosInstance';
 import { User, Award, FileText, UploadCloud, CheckCircle, RefreshCw, Lock, Mail, Phone, Building } from 'lucide-react';
 
 interface RegisterProps {
@@ -9,7 +11,8 @@ interface RegisterProps {
 }
 
 export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
-  const { registerDonorUser, registerNgoUser } = useWeb3();
+  const { login } = useAuth();
+  const { walletAddress } = useWeb3();
   const [selectedRole, setSelectedRole] = useState<'donor' | 'ngo'>('donor');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -32,24 +35,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'completed'>('idle');
   const [isDragOver, setIsDragOver] = useState(false);
-
-  // File upload simulation
-  const simulateFileUpload = (fileName: string) => {
-    setUploadState('uploading');
-    setUploadProgress(0);
-    setUploadedFile({ name: fileName, size: '2.4 MB' });
-
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploadState('completed');
-          return 100;
-        }
-        return prev + 20;
-      });
-    }, 200);
-  };
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -64,18 +50,24 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
     e.preventDefault();
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      simulateFileUpload(e.dataTransfer.files[0].name);
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
+      setUploadedFile({ name: file.name, size: `${(file.size / (1024 * 1024)).toFixed(1)} MB` });
+      setUploadState('completed');
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      simulateFileUpload(e.target.files[0].name);
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setUploadedFile({ name: file.name, size: `${(file.size / (1024 * 1024)).toFixed(1)} MB` });
+      setUploadState('completed');
     }
   };
 
   // Donor registration submit
-  const handleDonorRegister = (e: React.FormEvent) => {
+  const handleDonorRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -89,18 +81,30 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
       return;
     }
 
-    registerDonorUser({
-      name: donorName,
-      email: donorEmail,
-      password: donorPassword
-    });
+    try {
+      const response = await axiosInstance.post('/auth/register', {
+        name: donorName,
+        email: donorEmail,
+        password: donorPassword,
+        role: 'Donor',
+        walletAddress: walletAddress || ''
+      });
 
-    // Auto-redirect post registration to donor dashboard
-    setActivePage('donor-dashboard');
+      if (response.data && response.data.success) {
+        const { token, user } = response.data;
+        login(token, user);
+        setActivePage('donor-dashboard');
+      } else {
+        setErrorMessage(response.data.message || 'Registration failed');
+      }
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || 'Registration failed. Please try again.';
+      setErrorMessage(errMsg);
+    }
   };
 
   // NGO registration submit
-  const handleNgoRegister = (e: React.FormEvent) => {
+  const handleNgoRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -109,23 +113,47 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
       return;
     }
 
-    if (!ngoName || !ngoRegNumber || !ngoEmail || !ngoPassword || uploadState !== 'completed') {
+    if (!ngoName || !ngoRegNumber || !ngoEmail || !ngoPassword || !selectedFile) {
       setErrorMessage('Please complete all form fields and upload verification PDF');
       return;
     }
 
-    registerNgoUser({
-      name: ngoName,
-      registrationNumber: ngoRegNumber,
-      contactInfo: ngoContactInfo,
-      email: ngoEmail,
-      password: ngoPassword,
-      documentName: uploadedFile?.name || 'document.pdf',
-      documentUrl: '/assets/images/3.png'
-    });
+    setUploadState('uploading');
+    setUploadProgress(20);
 
-    // Auto-redirect post registration to NGO dashboard
-    setActivePage('ngo-dashboard');
+    try {
+      const formData = new FormData();
+      formData.append('name', ngoName);
+      formData.append('email', ngoEmail);
+      formData.append('password', ngoPassword);
+      formData.append('role', 'NGO');
+      formData.append('walletAddress', walletAddress || '');
+      formData.append('registrationNumber', ngoRegNumber);
+      formData.append('file', selectedFile);
+
+      setUploadProgress(60);
+
+      const response = await axiosInstance.post('/auth/register', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setUploadProgress(100);
+
+      if (response.data && response.data.success) {
+        const { token, user } = response.data;
+        login(token, user);
+        setActivePage('ngo-dashboard');
+      } else {
+        setUploadState('completed');
+        setErrorMessage(response.data.message || 'Registration failed');
+      }
+    } catch (err: any) {
+      setUploadState('completed');
+      const errMsg = err.response?.data?.message || 'Registration failed. Please try again.';
+      setErrorMessage(errMsg);
+    }
   };
 
   return (
@@ -147,7 +175,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
           <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">
             Select Account Category
           </span>
-          
+
           <div className="grid grid-cols-2 gap-3 w-full max-w-md p-1 bg-slate-200/60 rounded-xl border border-slate-200">
             <button
               type="button"
@@ -155,11 +183,10 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                 setSelectedRole('donor');
                 setErrorMessage('');
               }}
-              className={`py-2 px-3 rounded-lg text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
-                selectedRole === 'donor'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
+              className={`py-2 px-3 rounded-lg text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'donor'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
+                }`}
             >
               <User size={14} className={selectedRole === 'donor' ? 'text-trust-blue' : ''} />
               <span>Register as Donor</span>
@@ -171,11 +198,10 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                 setSelectedRole('ngo');
                 setErrorMessage('');
               }}
-              className={`py-2 px-3 rounded-lg text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
-                selectedRole === 'ngo'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
+              className={`py-2 px-3 rounded-lg text-xs font-heading font-extrabold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'ngo'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
+                }`}
             >
               <Award size={14} className={selectedRole === 'ngo' ? 'text-trust-blue' : ''} />
               <span>Register as NGO</span>
@@ -347,8 +373,8 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
-                          type="text"
-                          placeholder="+1 (555) 019-2831"
+                          type="int"
+                          placeholder="+94 (555)0192"
                           value={ngoContactInfo}
                           onChange={(e) => setNgoContactInfo(e.target.value)}
                           className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
@@ -419,13 +445,12 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
-                      className={`relative border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all duration-300 min-h-[90px] ${
-                        isDragOver
-                          ? 'border-milestone-green bg-emerald-50/20'
-                          : uploadState === 'completed'
+                      className={`relative border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all duration-300 min-h-[90px] ${isDragOver
+                        ? 'border-milestone-green bg-emerald-50/20'
+                        : uploadState === 'completed'
                           ? 'border-milestone-green bg-emerald-50/10'
                           : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <input
                         type="file"

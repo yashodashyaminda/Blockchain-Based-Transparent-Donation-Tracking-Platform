@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../context/Web3Context';
-import { Wallet, ShieldAlert, Award, User, RefreshCw, LayoutDashboard, Home, LogIn } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Wallet, ShieldAlert, Award, User, LayoutDashboard, Home, LogIn, LogOut } from 'lucide-react';
 
 interface NavbarProps {
   activePage: string;
@@ -8,7 +9,8 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => {
-  const { isWalletConnected, walletAddress, connectWallet, disconnectWallet, currentRole, resetState } = useWeb3();
+  const { isWalletConnected, walletAddress, connectWallet, currentRole } = useWeb3();
+  const { logout, user } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('hero');
 
@@ -84,11 +86,17 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
 
+  // Unified logout triggers Web2 logout and Web3 context resets
+  const handleLogout = () => {
+    logout();
+    setActivePage('home');
+  };
+
   return (
     <nav
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 px-6 md:px-12 flex items-center justify-between ${
         isNavbarDark
-          ? 'bg-slate-950/95 text-white backdrop-blur-md shadow-lg py-3'
+          ? 'bg-slate-950/95 backdrop-blur-md text-white border-b border-slate-800 py-3'
           : 'bg-transparent py-5'
       }`}
     >
@@ -116,20 +124,22 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
       {/* Nav Links with Scroll-Spy Active Highlighting */}
       <div className="hidden md:flex items-center gap-8 font-sans text-sm">
-        <button
-          onClick={() => scrollToSection('hero')}
-          className={`transition-colors duration-200 cursor-pointer ${
-            activePage === 'home' && activeSection === 'hero'
-              ? isNavbarDark
-                ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
-                : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isNavbarDark
-              ? 'text-slate-200 hover:text-blue-400 font-medium'
-              : 'text-slate-800 hover:text-blue-600 font-medium'
-          }`}
-        >
-          Home
-        </button>
+        {currentRole === 'guest' && (
+          <button
+            onClick={() => scrollToSection('hero')}
+            className={`transition-colors duration-200 cursor-pointer ${
+              activePage === 'home' && activeSection === 'hero'
+                ? isNavbarDark
+                  ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
+                  : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+                : isNavbarDark
+                ? 'text-slate-200 hover:text-blue-400 font-medium'
+                : 'text-slate-800 hover:text-blue-600 font-medium'
+            }`}
+          >
+            Home
+          </button>
+        )}
 
         <button
           onClick={() => scrollToSection('goal')}
@@ -212,7 +222,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         )}
 
         {/* Home Button if not on Home */}
-        {activePage !== 'home' && (
+        {activePage !== 'home' && currentRole === 'guest' && (
           <button
             onClick={() => scrollToSection('hero')}
             className={`p-2 rounded-xl transition-colors duration-200 cursor-pointer ${
@@ -224,20 +234,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           </button>
         )}
 
-        {/* Reset State Simulator */}
-        <button
-          onClick={resetState}
-          className={`p-2 rounded-xl transition-all duration-300 hover:rotate-180 cursor-pointer ${
-            isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-          }`}
-          title="Reset Platform State"
-        >
-          <RefreshCw size={16} />
-        </button>
 
         {/* Auth / Web3 Buttons */}
         {isWalletConnected ? (
           <div className="flex items-center gap-2">
+            {user?.name && (
+              <span className={`hidden md:inline text-xs font-semibold mr-1.5 ${isNavbarDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                {user.name}
+              </span>
+            )}
             <div
               className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${
                 isNavbarDark
@@ -263,26 +268,59 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               )}
             </div>
 
-            <button
-              onClick={disconnectWallet}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${
+            {/* Wallet Address Pill (Read-only indicator) */}
+            <div
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm border ${
                 isNavbarDark
-                  ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400'
-                  : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600'
+                  ? 'bg-slate-900/60 border-slate-800 text-slate-300'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
               }`}
             >
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{truncateAddress(walletAddress)}</span>
+            </div>
+
+            {/* Explicit Logout Button */}
+            <button
+              onClick={handleLogout}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${
+                isNavbarDark
+                  ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400 hover:bg-red-950/20'
+                  : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
+              }`}
+            >
+              <LogOut size={14} />
+              <span>Logout</span>
             </button>
           </div>
         ) : currentRole !== 'guest' ? (
-          <button
-            onClick={connectWallet}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-heading text-xs font-bold transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer"
-          >
-            <Wallet size={14} />
-            <span>Connect Web3 Wallet</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {user?.name && (
+              <span className={`hidden md:inline text-xs font-semibold mr-1.5 ${isNavbarDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                {user.name}
+              </span>
+            )}
+            <button
+              onClick={connectWallet}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-heading text-xs font-bold transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer"
+            >
+              <Wallet size={14} />
+              <span>Connect Web3 Wallet</span>
+            </button>
+
+            {/* Explicit Logout Button */}
+            <button
+              onClick={handleLogout}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${
+                isNavbarDark
+                  ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400 hover:bg-red-950/20'
+                  : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
+              }`}
+            >
+              <LogOut size={14} />
+              <span>Logout</span>
+            </button>
+          </div>
         ) : (
           <div className="flex items-center gap-2 text-xs">
             {/* Login button */}

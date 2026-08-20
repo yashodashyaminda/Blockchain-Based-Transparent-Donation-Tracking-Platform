@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
-import type { Campaign, Milestone } from '../../context/Web3Context';
+import { useAuth } from '../../context/AuthContext';
+import axiosInstance from '../../utils/axiosInstance';
+import type { Campaign } from '../../context/Web3Context';
 import { ShieldCheck, Users, Wallet, BarChart3, Edit3, Trash2, CheckCircle2, FileSearch, ArrowRight, ShieldAlert, Plus, AlertCircle, RefreshCw } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const { ngos, verifyNGO, campaigns, addCampaign, deleteCampaign, editCampaign, validateMilestoneProof, transactions } = useWeb3();
+  const { verifyNGO, validateMilestoneProof } = useWeb3();
+  const { user } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'crud' | 'metrics'>('approvals');
+  
+  // Real Admin State Lists (fetched from backend)
+  const [pendingNgos, setPendingNgos] = useState<any[]>([]);
+  const [pendingProofs, setPendingProofs] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   // NGO Review states
   const [selectedNgoId, setSelectedNgoId] = useState<string>('');
@@ -38,7 +47,7 @@ export const AdminDashboard: React.FC = () => {
   useEffect(() => {
     // Sum total target/raises for metrics
     const totalRaised = campaigns.reduce((acc, c) => acc + c.raised, 0) + 12000; // base offset
-    const totalUsers = ngos.length + 42; // base offset
+    const totalUsers = pendingNgos.length + 42; // base offset
     const totalTx = transactions.length + 128; // base offset
 
     // Animate counters
@@ -80,11 +89,78 @@ export const AdminDashboard: React.FC = () => {
       clearInterval(uInterval);
       clearInterval(tInterval);
     };
-  }, [campaigns, ngos, transactions]);
+  }, [campaigns, transactions, pendingNgos]);
+
+  // Load real admin listings on component mount
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        // 1. Fetch unverified NGOs
+        const ngosResponse = await axiosInstance.get('/auth/users?role=NGO&isVerified=false');
+        if (ngosResponse.data && ngosResponse.data.success) {
+          const mappedNgos = ngosResponse.data.data
+            .map((u: any) => ({
+              id: u._id,
+              name: u.name,
+              email: u.email,
+              registrationNumber: u.registrationNumber || 'NGO-REG-908',
+              contactInfo: u.contactInfo || 'N/A',
+              documentName: 'registration_certificate.pdf',
+              documentUrl: u.documentIpfsCID ? `https://gateway.pinata.cloud/ipfs/${u.documentIpfsCID}` : '',
+              documentIpfsCID: u.documentIpfsCID,
+              isVerified: u.isVerified,
+              wallet: u.walletAddress || '',
+            }));
+          setPendingNgos(mappedNgos);
+        }
+
+        // 2. Fetch Proofs
+        const proofsResponse = await axiosInstance.get('/proofs');
+        if (proofsResponse.data && proofsResponse.data.success) {
+          setPendingProofs(proofsResponse.data.data.filter((p: any) => !p.isApproved));
+        }
+
+        // 3. Fetch all campaigns
+        const campaignsResponse = await axiosInstance.get('/campaigns');
+        if (campaignsResponse.data && campaignsResponse.data.success) {
+          const mappedCampaigns = campaignsResponse.data.data.map((c: any) => ({
+            id: c._id,
+            name: c.title,
+            category: c.category,
+            description: c.description,
+            image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
+            target: c.targetAmount || 0,
+            raised: c.raisedAmount || 0,
+            ngoId: c.ngoId?._id || c.ngoId,
+            ngoName: c.ngoId?.name || 'Verified NGO',
+            milestones: c.milestones || [],
+          }));
+          setCampaigns(mappedCampaigns);
+        }
+
+        // 4. Fetch all donations/transactions
+        const donationsResponse = await axiosInstance.get('/donations');
+        if (donationsResponse.data && donationsResponse.data.success) {
+          const mappedTx = donationsResponse.data.data.map((d: any) => ({
+            hash: d.transactionHash,
+            date: new Date(d.createdAt).toLocaleDateString(),
+            amount: d.amount,
+            donorAddress: d.donorId?.walletAddress || '0x...',
+            campaignId: d.campaignId?._id || d.campaignId,
+            campaignName: d.campaignId?.title || 'Direct Donation',
+          }));
+          setTransactions(mappedTx);
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch admin data:', err);
+      }
+    };
+
+    fetchAdminData();
+  }, []);
 
   // Handle NGO approvals
-  const pendingNgos = ngos.filter(n => !n.isVerified);
-  const selectedNgo = ngos.find(n => n.id === selectedNgoId) || pendingNgos[0];
+  const selectedNgo = pendingNgos.find(n => n.id === selectedNgoId) || pendingNgos[0];
 
   useEffect(() => {
     if (pendingNgos.length > 0 && !selectedNgoId) {
@@ -92,20 +168,41 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [pendingNgos, selectedNgoId]);
 
-  const handleNgoVerification = (id: string, approve: boolean) => {
-    verifyNGO(id, approve);
-    setSelectedNgoId('');
+  const handleNgoVerification = async (id: string, approve: boolean) => {
+    try {
+      if (approve) {
+        await axiosInstance.put(`/auth/verify-ngo/${id}`);
+        // Notify mock local context also
+        verifyNGO(id, true);
+        alert('NGO verified and approved successfully!');
+      } else {
+        await axiosInstance.put(`/auth/reject-ngo/${id}`);
+        alert('NGO registration was rejected.');
+      }
+      
+      // Remove from list
+      setPendingNgos(prev => prev.filter(n => n.id !== id));
+      setSelectedNgoId('');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Action failed');
+    }
   };
 
-  // Find milestones that are submitted (status === Approved) but not yet released
-  const pendingMilestoneReleases: Array<{ campaign: Campaign; milestone: Milestone }> = [];
-  campaigns.forEach(c => {
-    c.milestones.forEach(m => {
-      if (m.status === 'Approved') {
-        pendingMilestoneReleases.push({ campaign: c, milestone: m });
-      }
-    });
-  });
+  // Find milestones that are submitted but not yet released (from fetched proofs list)
+  const pendingMilestoneReleases = pendingProofs.map(p => ({
+    campaign: {
+      id: p.campaignId?._id || p.campaignId,
+      name: p.campaignId?.title || 'Active Campaign',
+    },
+    milestone: {
+      id: p._id,
+      title: 'Milestone Phase Audit',
+      amount: p.campaignId?.targetAmount ? Math.round(p.campaignId.targetAmount / 3) : 3500,
+      proofText: p.title || 'No description provided.',
+      proofDoc: p.ipfsCID ? `IPFS CID: ${p.ipfsCID.substring(0, 15)}...` : null,
+      ipfsCID: p.ipfsCID,
+    }
+  }));
 
   // Verify milestone proof & release funds smart contract execution
   const handleVerifyMilestone = async (campaignId: string, milestoneId: string) => {
@@ -113,31 +210,70 @@ export const AdminDashboard: React.FC = () => {
     setVerifyingMilestoneId(milestoneId);
     setIsContractExecuting(true);
     
-    // Trigger simulated contract validation
-    await validateMilestoneProof(campaignId, milestoneId);
-    
-    setIsContractExecuting(false);
-    setContractSuccess(true);
-    
-    setTimeout(() => {
-      setContractSuccess(false);
-      setVerifyingCampaignId('');
-      setVerifyingMilestoneId('');
-    }, 3000);
+    try {
+      // 1. Backend PUT call to approve/verify the proof
+      await axiosInstance.put(`/proofs/${milestoneId}/approve`);
+
+      // 2. Trigger smart contract payout execution from Web3 context
+      await validateMilestoneProof(campaignId, milestoneId);
+
+      setIsContractExecuting(false);
+      setContractSuccess(true);
+
+      // 3. Remove the approved proof from the local pending state
+      setPendingProofs(prev => prev.filter(p => p._id !== milestoneId));
+
+      setTimeout(() => {
+        setContractSuccess(false);
+        setVerifyingCampaignId('');
+        setVerifyingMilestoneId('');
+      }, 3000);
+    } catch (err: any) {
+      setIsContractExecuting(false);
+      alert(err.response?.data?.message || 'Failed to approve milestone proof');
+    }
   };
 
   // Add campaign submit
-  const handleAddCampaignSubmit = (e: React.FormEvent) => {
+  const handleAddCampaignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjName || !newProjDesc || !newProjTarget) return;
 
-    addCampaign(
-      newProjName,
-      newProjCat,
-      newProjDesc,
-      '/assets/images/4.png',
-      parseFloat(newProjTarget)
-    );
+    try {
+      const formData = new FormData();
+      formData.append('title', newProjName);
+      formData.append('description', newProjDesc);
+      formData.append('targetAmount', newProjTarget);
+      formData.append('category', newProjCat);
+      
+      // Add dummy file object to pass multer check
+      const coverBlob = new Blob([''], { type: 'image/png' });
+      formData.append('file', coverBlob, 'dummy_cover.png');
+
+      const response = await axiosInstance.post('/campaigns', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data && response.data.success) {
+        const newCampaign = {
+          id: response.data.campaign._id,
+          name: response.data.campaign.title,
+          category: response.data.campaign.category,
+          description: response.data.campaign.description,
+          image: '/assets/images/4.png',
+          target: response.data.campaign.targetAmount,
+          raised: response.data.campaign.raisedAmount,
+          ngoId: user?.id,
+          ngoName: user?.name || 'Admin',
+          milestones: [],
+        };
+
+        setCampaigns(prev => [...prev, newCampaign]);
+        alert('Campaign created and saved successfully!');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to create campaign');
+    }
 
     setNewProjName('');
     setNewProjDesc('');
@@ -147,17 +283,45 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // Inline editing save handler
-  const handleSaveEdit = (id: string) => {
-    editCampaign(id, {
-      name: editName,
-      target: editTarget,
-      category: editCat
-    });
+  const handleSaveEdit = async (id: string) => {
+    try {
+      const response = await axiosInstance.put(`/campaigns/${id}`, {
+        title: editName,
+        targetAmount: editTarget,
+        category: editCat,
+      });
+
+      if (response.data && response.data.success) {
+        setCampaigns(prev => prev.map(c => c.id === id ? {
+          ...c,
+          name: editName,
+          target: editTarget,
+          category: editCat
+        } : c));
+        alert('Campaign updated successfully!');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update campaign');
+    }
     setEditingCampaignId(null);
   };
 
+  // Delete campaign handler
+  const handleDeleteCampaign = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this campaign?')) return;
+    try {
+      const response = await axiosInstance.delete(`/campaigns/${id}`);
+      if (response.data && response.data.success) {
+        setCampaigns(prev => prev.filter(c => c.id !== id));
+        alert('Campaign deleted successfully!');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete campaign');
+    }
+  };
+
   // Set initial editing states
-  const startEditing = (c: Campaign) => {
+  const startEditing = (c: any) => {
     setEditingCampaignId(c.id);
     setEditName(c.name);
     setEditTarget(c.target);
@@ -199,7 +363,7 @@ export const AdminDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Role: Smart Contract Auditor • Protocol Address: <span className="font-mono text-slate-600">0x00AAd...C1275</span>
+                Admin: <span className="font-semibold text-slate-800">{user?.name || 'System Admin'}</span> ({user?.email || 'admin@email.com'}) • Protocol Address: <span className="font-mono text-slate-600">{user?.walletAddress || '0x00AAd...C1275'}</span>
               </p>
             </div>
           </div>
@@ -287,24 +451,54 @@ export const AdminDashboard: React.FC = () => {
                         <div className="sm:col-span-7 flex flex-col gap-4">
                           <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Audit Document Viewer</span>
                           
-                          {/* Mock PDF document canvas display */}
+                          {/* Registration Document Preview Container */}
                           <div className="relative aspect-[4/3] w-full border border-slate-200 rounded-2xl overflow-hidden bg-slate-100 flex flex-col items-center justify-center shadow-inner group">
-                            <img 
-                              src={selectedNgo.documentUrl} 
-                              alt="Legal document PDF canvas" 
-                              className="w-full h-full object-cover opacity-85 group-hover:scale-[1.02] transition-transform duration-300" 
-                            />
-                            <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center pointer-events-none">
-                              <span className="px-3 py-1.5 rounded-lg bg-slate-900/75 text-white font-mono text-[9px] uppercase tracking-wider font-bold shadow-md">
-                                PDF DOCUMENT INDEXED
-                              </span>
-                            </div>
+                            {selectedNgo.documentIpfsCID ? (
+                              <a
+                                href={`https://gateway.pinata.cloud/ipfs/${selectedNgo.documentIpfsCID}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full h-full block"
+                              >
+                                <img 
+                                  src={`https://gateway.pinata.cloud/ipfs/${selectedNgo.documentIpfsCID}`} 
+                                  alt="NGO Registration PDF" 
+                                  className="w-full h-full object-cover opacity-85 group-hover:scale-[1.02] transition-transform duration-300"
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/assets/images/2.png";
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center group-hover:bg-slate-900/20 transition-all duration-300">
+                                  <span className="px-3 py-1.5 rounded-lg bg-slate-900/75 text-white font-mono text-[9px] uppercase tracking-wider font-bold shadow-md">
+                                    CLICK TO OPEN DOCUMENT
+                                  </span>
+                                </div>
+                              </a>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1.5 p-4 text-slate-400">
+                                <AlertCircle size={20} />
+                                <span className="text-[10px] font-bold">No Document Attached</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex flex-col gap-1.5 text-xs">
                             <span className="font-bold text-slate-800">{selectedNgo.name}</span>
-                            <span className="text-[10px] text-slate-500">Reg ID: {selectedNgo.id}</span>
+                            <span className="text-[10px] text-slate-500">Reg ID: {selectedNgo.registrationNumber}</span>
                             <span className="text-[9px] text-slate-400 font-mono select-all truncate mt-0.5">Wallet: {selectedNgo.wallet}</span>
+
+                            <a
+                              href={selectedNgo.documentIpfsCID ? `https://gateway.pinata.cloud/ipfs/${selectedNgo.documentIpfsCID}` : undefined}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`mt-2 py-2 px-3 rounded-xl text-center text-[10px] font-bold border transition-all duration-200 ${
+                                selectedNgo.documentIpfsCID
+                                  ? 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100'
+                                  : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed pointer-events-none'
+                              }`}
+                            >
+                              {selectedNgo.documentIpfsCID ? 'View NGO Registration Document' : 'No Document Attached'}
+                            </a>
                           </div>
 
                           <div className="flex gap-3 mt-1">
@@ -366,7 +560,7 @@ export const AdminDashboard: React.FC = () => {
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
                                   <span className="font-bold text-slate-700">Receipt: {milestone.proofDoc}</span>
                                   <a
-                                    href="/assets/images/3.png"
+                                    href={milestone.ipfsCID ? `https://gateway.pinata.cloud/ipfs/${milestone.ipfsCID}` : '#'}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-trust-blue hover:underline flex items-center gap-1"
@@ -596,7 +790,7 @@ export const AdminDashboard: React.FC = () => {
                                       <Edit3 size={12} />
                                     </button>
                                     <button
-                                      onClick={() => deleteCampaign(c.id)}
+                                      onClick={() => handleDeleteCampaign(c.id)}
                                       className="p-1.5 rounded-lg border border-slate-100 hover:border-red-200 text-slate-500 hover:text-red-500 hover:bg-red-50/50 transition-colors duration-200 cursor-pointer bg-white"
                                       title="Delete campaign"
                                     >

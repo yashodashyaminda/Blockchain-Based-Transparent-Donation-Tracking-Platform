@@ -124,3 +124,30 @@ exports.getMyDonations = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Get all donations (Admin only)
+ * @route   GET /api/donations
+ * @access  Private (Admin only)
+ */
+exports.getDonations = async (req, res) => {
+  try {
+    const donations = await Donation.find()
+      .populate('donorId', 'name email walletAddress')
+      .populate('campaignId', 'title description targetAmount raisedAmount status')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: donations.length,
+      data: donations,
+    });
+  } catch (error) {
+    console.error('Get All Donations Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error occurred while fetching all donations ledger',
+      error: error.message,
+    });
+  }
+};

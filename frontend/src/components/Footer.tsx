@@ -22,7 +22,7 @@ export const Footer: React.FC = () => {
 
         {/* Text and Links */}
         <div className="flex flex-col items-center md:items-start gap-1 text-xs text-slate-400">
-          <p>© 2026 ChainTrust. Final Year Software Engineering Project (ID: 11275).</p>
+          <p>© 2026 ChainTrust, Final Year Software Engineering Project</p>
           <p className="flex items-center gap-1 justify-center md:justify-start">
             Built with <Heart size={10} className="text-red-500 fill-red-500" /> for transparency and ledger tracking auditability.
           </p>
