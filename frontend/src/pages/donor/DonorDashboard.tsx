@@ -11,9 +11,24 @@ interface DonorDashboardProps {
 }
 
 export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampaignId, setPreSelectedCampaignId }) => {
-  const { campaigns, donateToCampaign, isWalletConnected, walletAddress, transactions, bindWalletToProfile } = useWeb3();
+  const { campaigns, donateToCampaign, isWalletConnected, walletAddress, transactions, bindWalletToProfile, refreshCampaigns } = useWeb3();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'map' | 'ledger'>('browse');
+  const [loadingCampaigns, setLoadingCampaigns] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      setLoadingCampaigns(true);
+      try {
+        await refreshCampaigns();
+      } catch (err) {
+        console.error('Failed to refresh campaigns in DonorDashboard:', err);
+      } finally {
+        setLoadingCampaigns(false);
+      }
+    };
+    fetchCampaigns();
+  }, [refreshCampaigns]);
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,52 +205,64 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
                 {/* Campaigns Grid */}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredCampaigns.map(c => {
-                    const percent = Math.min(100, Math.round((c.raised / c.target) * 100));
-                    return (
-                      <div key={c.id} className="bg-white rounded-3xl border border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden">
-                        <div className="aspect-[16/10] bg-slate-100 relative">
-                          <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
-                          <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/95 text-[9px] uppercase font-bold text-slate-700 shadow-sm border border-slate-100">
-                            {c.category}
+                  {loadingCampaigns ? (
+                    <div className="col-span-3 py-16 flex flex-col items-center justify-center gap-3 text-slate-400">
+                      <RefreshCw className="animate-spin text-trust-blue" size={32} />
+                      <span className="text-sm font-medium">Loading campaigns...</span>
+                    </div>
+                  ) : filteredCampaigns.length === 0 ? (
+                    <div className="col-span-3 py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
+                      <AlertCircle size={32} className="text-slate-300" />
+                      <span className="text-sm font-medium">No campaigns found matching your query.</span>
+                    </div>
+                  ) : (
+                    filteredCampaigns.map(c => {
+                      const percent = Math.min(100, Math.round((c.raised / c.target) * 100));
+                      return (
+                        <div key={c.id} className="bg-white rounded-3xl border border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden">
+                          <div className="aspect-[16/10] bg-slate-100 relative">
+                            <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/95 text-[9px] uppercase font-bold text-slate-700 shadow-sm border border-slate-100">
+                              {c.category}
+                            </div>
+                          </div>
+
+                          <div className="p-6 flex flex-col flex-grow gap-4">
+                            <div>
+                              <h4 className="font-heading font-extrabold text-base text-slate-900 line-clamp-1">{c.name}</h4>
+                              <p className="text-[10px] text-slate-400 mt-0.5">NGO: {c.ngoName}</p>
+                            </div>
+                            
+                            <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-3">
+                              {c.description}
+                            </p>
+
+                            {/* Progress bar */}
+                            <div className="flex flex-col gap-1 mt-auto">
+                              <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                                <span>Fund Progress</span>
+                                <span>{percent}%</span>
+                              </div>
+                              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
+                                <div className="h-full bg-trust-blue" style={{ width: `${percent}%` }} />
+                              </div>
+                              <div className="flex justify-between text-[9px] mt-0.5 font-medium text-slate-400">
+                                <span>${c.raised.toLocaleString()} raised</span>
+                                <span>Target: ${c.target.toLocaleString()}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => setSelectedCampaign(c)}
+                              className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-trust-blue shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer text-center"
+                            >
+                              Support Project
+                            </button>
                           </div>
                         </div>
-
-                        <div className="p-6 flex flex-col flex-grow gap-4">
-                          <div>
-                            <h4 className="font-heading font-extrabold text-base text-slate-900 line-clamp-1">{c.name}</h4>
-                            <p className="text-[10px] text-slate-400 mt-0.5">NGO: {c.ngoName}</p>
-                          </div>
-                          
-                          <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-3">
-                            {c.description}
-                          </p>
-
-                          {/* Progress bar */}
-                          <div className="flex flex-col gap-1 mt-auto">
-                            <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                              <span>Fund Progress</span>
-                              <span>{percent}%</span>
-                            </div>
-                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
-                              <div className="h-full bg-trust-blue" style={{ width: `${percent}%` }} />
-                            </div>
-                            <div className="flex justify-between text-[9px] mt-0.5 font-medium text-slate-400">
-                              <span>${c.raised.toLocaleString()} raised</span>
-                              <span>Target: ${c.target.toLocaleString()}</span>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => setSelectedCampaign(c)}
-                            className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-trust-blue shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer text-center"
-                          >
-                            Support Project
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </motion.div>
             )}

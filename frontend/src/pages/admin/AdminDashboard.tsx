@@ -96,8 +96,8 @@ export const AdminDashboard: React.FC = () => {
   // Load real admin listings on component mount
   useEffect(() => {
     const fetchAdminData = async () => {
+      // 1. Fetch unverified NGOs
       try {
-        // 1. Fetch unverified NGOs
         const ngosResponse = await axiosInstance.get('/auth/users?role=NGO&isVerified=false&verificationStatus=Pending');
         if (ngosResponse.data && ngosResponse.data.success) {
           const mappedNgos = ngosResponse.data.data
@@ -115,40 +115,48 @@ export const AdminDashboard: React.FC = () => {
             }));
           setPendingNgos(mappedNgos);
         }
+      } catch (err: any) {
+        console.error('Failed to fetch pending NGOs:', err);
+      }
 
-        // 2. Fetch Proofs
+      // 2. Fetch Proofs
+      try {
         const proofsResponse = await axiosInstance.get('/proofs');
         if (proofsResponse.data && proofsResponse.data.success) {
           setPendingProofs(proofsResponse.data.data.filter((p: any) => !p.isApproved));
         }
+      } catch (err: any) {
+        console.error('Failed to fetch proofs:', err);
+      }
 
-        // 3. Fetch all campaigns
-        setLoadingCampaigns(true);
-        try {
-          const campaignsResponse = await axiosInstance.get('/campaigns');
-          if (campaignsResponse.data && campaignsResponse.data.success) {
-            setAllCampaigns(campaignsResponse.data.data);
-            const mappedCampaigns = campaignsResponse.data.data.map((c: any) => ({
-              id: c._id,
-              name: c.title,
-              category: c.category,
-              description: c.description,
-              image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
-              target: c.targetAmount || 0,
-              raised: c.raisedAmount || 0,
-              ngoId: c.ngoId?._id || c.ngoId,
-              ngoName: c.ngoId?.name || 'Verified NGO',
-              milestones: c.milestones || [],
-            }));
-            setCampaigns(mappedCampaigns);
-          }
-        } catch (campaignErr) {
-          console.error('Failed to fetch campaigns inside AdminDashboard:', campaignErr);
-        } finally {
-          setLoadingCampaigns(false);
+      // 3. Fetch all campaigns
+      setLoadingCampaigns(true);
+      try {
+        const campaignsResponse = await axiosInstance.get('/campaigns');
+        if (campaignsResponse.data && campaignsResponse.data.success) {
+          setAllCampaigns(campaignsResponse.data.data);
+          const mappedCampaigns = campaignsResponse.data.data.map((c: any) => ({
+            id: c._id,
+            name: c.title,
+            category: c.category,
+            description: c.description,
+            image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
+            target: c.targetAmount || 0,
+            raised: c.raisedAmount || 0,
+            ngoId: c.ngoId?._id || c.ngoId,
+            ngoName: c.ngoId?.name || 'Verified NGO',
+            milestones: c.milestones || [],
+          }));
+          setCampaigns(mappedCampaigns);
         }
+      } catch (campaignErr) {
+        console.error('Failed to fetch campaigns inside AdminDashboard:', campaignErr);
+      } finally {
+        setLoadingCampaigns(false);
+      }
 
-        // 4. Fetch all donations/transactions
+      // 4. Fetch all donations/transactions
+      try {
         const donationsResponse = await axiosInstance.get('/donations');
         if (donationsResponse.data && donationsResponse.data.success) {
           const mappedTx = donationsResponse.data.data.map((d: any) => ({
@@ -162,7 +170,7 @@ export const AdminDashboard: React.FC = () => {
           setTransactions(mappedTx);
         }
       } catch (err: any) {
-        console.error('Failed to fetch admin data:', err);
+        console.error('Failed to fetch donations/transactions:', err);
       }
     };
 
