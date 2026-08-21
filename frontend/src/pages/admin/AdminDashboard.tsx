@@ -23,6 +23,7 @@ export const AdminDashboard: React.FC = () => {
   const [selectedNgoId, setSelectedNgoId] = useState<string>('');
 
   // Milestone release states
+  const [selectedProofId, setSelectedProofId] = useState<string>('');
   const [verifyingMilestoneId, setVerifyingMilestoneId] = useState<string>('');
   const [verifyingCampaignId, setVerifyingCampaignId] = useState<string>('');
   const [isContractExecuting, setIsContractExecuting] = useState(false);
@@ -222,6 +223,14 @@ export const AdminDashboard: React.FC = () => {
     }
   }));
 
+  const selectedRelease = pendingMilestoneReleases.find(r => r.milestone.id === selectedProofId) || pendingMilestoneReleases[0];
+
+  useEffect(() => {
+    if (pendingMilestoneReleases.length > 0 && !selectedProofId) {
+      setSelectedProofId(pendingMilestoneReleases[0].milestone.id);
+    }
+  }, [pendingMilestoneReleases, selectedProofId]);
+
   // Verify milestone proof & release funds smart contract execution
   const handleVerifyMilestone = async (campaignId: string, milestoneId: string) => {
     setVerifyingCampaignId(campaignId);
@@ -240,6 +249,7 @@ export const AdminDashboard: React.FC = () => {
 
       // 3. Remove the approved proof from the local pending state
       setPendingProofs(prev => prev.filter(p => p._id !== milestoneId));
+      setSelectedProofId('');
 
       setTimeout(() => {
         setContractSuccess(false);
@@ -249,6 +259,19 @@ export const AdminDashboard: React.FC = () => {
     } catch (err: any) {
       setIsContractExecuting(false);
       alert(err.response?.data?.message || 'Failed to approve milestone proof');
+    }
+  };
+
+  // Reject and delete milestone proof
+  const handleRejectMilestone = async (milestoneId: string) => {
+    if (!window.confirm('Are you sure you want to reject and delete this milestone proof claim?')) return;
+    try {
+      await axiosInstance.delete(`/proofs/${milestoneId}`);
+      alert('Milestone proof claim rejected and deleted.');
+      setPendingProofs(prev => prev.filter(p => p._id !== milestoneId));
+      setSelectedProofId('');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to reject milestone proof');
     }
   };
 
@@ -492,8 +515,8 @@ export const AdminDashboard: React.FC = () => {
                             key={n.id}
                             onClick={() => setSelectedNgoId(n.id)}
                             className={`w-full text-left p-3 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${selectedNgo?.id === n.id
-                                ? 'bg-purple-50/50 border-purple-200 text-purple-600 font-bold'
-                                : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
+                              ? 'bg-purple-50/50 border-purple-200 text-purple-600 font-bold'
+                              : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
                               }`}
                           >
                             <span className="block truncate">{n.name}</span>
@@ -555,8 +578,8 @@ export const AdminDashboard: React.FC = () => {
                               target="_blank"
                               rel="noreferrer"
                               className={`mt-2 py-2 px-3 rounded-xl text-center text-[10px] font-bold border transition-all duration-200 ${selectedNgo.documentIpfsCID
-                                  ? 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100 cursor-pointer'
-                                  : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed pointer-events-none'
+                                ? 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100 cursor-pointer'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed pointer-events-none'
                                 }`}
                             >
                               {selectedNgo.documentIpfsCID ? 'View NGO Registration Document' : 'No Document Attached'}
@@ -599,66 +622,115 @@ export const AdminDashboard: React.FC = () => {
                       <span>No active milestone payout claims submitted by verified NGOs.</span>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 overflow-y-auto max-h-[360px]">
-                      {pendingMilestoneReleases.map(({ campaign, milestone }) => {
-                        const isExecutingThis = verifyingMilestoneId === milestone.id && verifyingCampaignId === campaign.id;
+                    <div className="grid sm:grid-cols-12 gap-6 border-t border-slate-100 pt-4">
+                      {/* Left list pane (Queue List) */}
+                      <div className="sm:col-span-5 flex flex-col gap-2 border-r border-slate-50 pr-2">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Queue List</span>
+                        {pendingMilestoneReleases.map(({ campaign, milestone }) => (
+                          <button
+                            key={milestone.id}
+                            onClick={() => setSelectedProofId(milestone.id)}
+                            className={`w-full text-left p-3 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${selectedRelease?.milestone.id === milestone.id
+                              ? 'bg-amber-50/50 border-amber-200 text-amber-700 font-bold'
+                              : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
+                              }`}
+                          >
+                            <span className="block truncate">{campaign.name}</span>
+                            <span className="block text-[9px] text-slate-400 font-normal truncate mt-0.5">{milestone.title}</span>
+                          </button>
+                        ))}
+                      </div>
 
-                        return (
-                          <div key={milestone.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col gap-4">
-                            <div className="flex justify-between items-start gap-4">
-                              <div>
-                                <span className="text-[9px] uppercase font-extrabold text-amber-600 tracking-wider">Fund Claim Submitted</span>
-                                <h4 className="font-heading font-bold text-sm text-slate-950 mt-0.5">{campaign.name}</h4>
-                                <p className="text-[10px] font-semibold text-slate-600 mt-1">Phase: {milestone.title}</p>
+                      {/* Right split action pane (Audit Document Viewer) */}
+                      {selectedRelease && (
+                        <div className="sm:col-span-7 flex flex-col gap-4">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compliance Proof Viewer</span>
+
+                          {/* Fields Grid */}
+                          <div className="grid grid-cols-2 gap-4 text-left my-2">
+                            {/* Campaign Title */}
+                            <div className="flex flex-col gap-1 col-span-2">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Campaign Title</span>
+                              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
+                                <Building size={12} className="text-slate-400 shrink-0" />
+                                <span className="truncate font-semibold">{selectedRelease.campaign.name}</span>
                               </div>
-                              <span className="font-heading font-extrabold text-sm text-slate-800">${milestone.amount.toLocaleString()}</span>
                             </div>
 
-                            <div className="text-xs bg-white border border-slate-100 p-3.5 rounded-xl leading-relaxed text-slate-500">
-                              <span className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">NGO Evidence Report</span>
-                              {milestone.proofText}
-
-                              {milestone.proofDoc && (
-                                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                                  <span className="font-bold text-slate-700">Receipt: {milestone.proofDoc}</span>
-                                  <a
-                                    href={milestone.ipfsCID ? `https://gateway.pinata.cloud/ipfs/${milestone.ipfsCID}` : '#'}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-trust-blue hover:underline flex items-center gap-1"
-                                  >
-                                    <span>View File</span>
-                                    <ArrowRight size={10} />
-                                  </a>
-                                </div>
-                              )}
+                            {/* Payout Phase */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Payout Phase</span>
+                              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
+                                <FileText size={11} className="text-slate-400 shrink-0" />
+                                <span className="truncate font-semibold">{selectedRelease.milestone.title}</span>
+                              </div>
                             </div>
 
-                            {/* Trigger smart contract button */}
+                            {/* Requested Amount */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Requested Amount ($)</span>
+                              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
+                                <Wallet size={12} className="text-slate-400 shrink-0" />
+                                <span className="truncate font-semibold">${selectedRelease.milestone.amount.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* NGO Evidence Report Box */}
+                          <div className="text-xs bg-white border border-slate-100 p-3.5 rounded-xl leading-relaxed text-slate-500">
+                            <span className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">NGO Evidence Report</span>
+                            <p className="font-semibold text-slate-700 whitespace-pre-wrap">{selectedRelease.milestone.proofText}</p>
+
+                            {selectedRelease.milestone.proofDoc && (
+                              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                                <span className="font-bold text-slate-500 truncate max-w-[150px]">{selectedRelease.milestone.proofDoc}</span>
+                                <a
+                                  href={selectedRelease.milestone.ipfsCID ? `https://gateway.pinata.cloud/ipfs/${selectedRelease.milestone.ipfsCID}` : '#'}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-trust-blue hover:underline flex items-center gap-1 font-bold"
+                                >
+                                  <span>View File</span>
+                                  <ArrowRight size={10} />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions button block */}
+                          <div className="flex gap-3 mt-1">
+                            {/* Verify & Release Funds Button */}
                             <button
-                              onClick={() => handleVerifyMilestone(campaign.id, milestone.id)}
-                              disabled={isExecutingThis || isContractExecuting}
-                              className="w-full py-3 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-emerald-600 disabled:bg-slate-400 disabled:cursor-not-allowed shadow-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+                              onClick={() => handleVerifyMilestone(selectedRelease.campaign.id, selectedRelease.milestone.id)}
+                              disabled={isContractExecuting}
+                              className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-950 hover:bg-emerald-600 disabled:bg-slate-400 disabled:cursor-not-allowed shadow-sm transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5"
                             >
-                              {isExecutingThis && isContractExecuting ? (
+                              {verifyingMilestoneId === selectedRelease.milestone.id && verifyingCampaignId === selectedRelease.campaign.id && isContractExecuting ? (
                                 <>
-                                  <RefreshCw size={14} className="animate-spin" />
-                                  <span>Simulating Smart Contract Execution...</span>
+                                  <RefreshCw size={12} className="animate-spin" />
+                                  <span>Releasing...</span>
                                 </>
-                              ) : isExecutingThis && contractSuccess ? (
+                              ) : verifyingMilestoneId === selectedRelease.milestone.id && verifyingCampaignId === selectedRelease.campaign.id && contractSuccess ? (
                                 <>
-                                  <CheckCircle2 size={14} className="text-emerald-300" />
-                                  <span>Milestone Funds Payout Confirmed</span>
+                                  <CheckCircle2 size={12} className="text-emerald-300" />
+                                  <span>Released</span>
                                 </>
                               ) : (
-                                <>
-                                  <span>Verify Proof & Release Milestone Funds</span>
-                                </>
+                                <span>Verify & Release Funds</span>
                               )}
                             </button>
+
+                            {/* Reject Button */}
+                            <button
+                              onClick={() => handleRejectMilestone(selectedRelease.milestone.id)}
+                              disabled={isContractExecuting}
+                              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-500 hover:border-red-200 hover:text-red-500 hover:bg-red-50/50 transition-colors duration-200 cursor-pointer text-center font-bold text-xs"
+                            >
+                              Reject
+                            </button>
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
