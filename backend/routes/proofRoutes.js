@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   createProof,
+  getAllProofs,
   getCampaignProofs,
   updateProof,
   deleteProof,
@@ -17,6 +18,9 @@ const upload = require('../middleware/multerMiddleware');
 
 // Private route: Submit new compliance/disbursement proof document (Only NGO role)
 router.post('/', verifyToken, upload.single('file'), checkRole(['NGO']), createProof);
+
+// Private route: Fetch all proofs across all campaigns (Admin only)
+router.get('/', verifyToken, checkRole(['Admin']), getAllProofs);
 
 // Public route: Fetch all proofs submitted for a specific campaign ID
 router.get('/campaign/:campaignId', getCampaignProofs);

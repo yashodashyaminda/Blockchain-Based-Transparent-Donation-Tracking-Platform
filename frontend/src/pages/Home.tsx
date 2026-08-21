@@ -368,10 +368,10 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                           </div>
                           <button
                             onClick={() => handleDonateNow(campaign.id)}
-                            disabled={user?.role === 'NGO'}
-                            title={user?.role === 'NGO' ? 'Only Donors can fund campaigns' : undefined}
+                            disabled={user?.role === 'NGO' || user?.role === 'Admin'}
+                            title={user?.role === 'NGO' || user?.role === 'Admin' ? "Only Donors can contribute to campaigns." : undefined}
                             className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold shadow-sm transition-all duration-200 whitespace-nowrap ${
-                              user?.role === 'NGO'
+                              user?.role === 'NGO' || user?.role === 'Admin'
                                 ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none'
                                 : 'text-white bg-slate-900 hover:bg-blue-600 hover:shadow-md cursor-pointer'
                             }`}

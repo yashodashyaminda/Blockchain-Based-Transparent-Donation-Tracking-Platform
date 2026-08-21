@@ -84,6 +84,39 @@ exports.createProof = async (req, res) => {
 };
 
 /**
+ * @desc    Get all proofs submitted across all campaigns (Admin only)
+ * @route   GET /api/proofs
+ * @access  Private (Admin only)
+ */
+exports.getAllProofs = async (req, res) => {
+  try {
+    const proofs = await Proof.find()
+      .populate({
+        path: 'ngoId',
+        select: 'name email walletAddress',
+      })
+      .populate({
+        path: 'campaignId',
+        select: 'title targetAmount raisedAmount status',
+      })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: proofs.length,
+      data: proofs,
+    });
+  } catch (error) {
+    console.error('Get All Proofs Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error occurred while fetching proofs',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * @desc    Get all proofs submitted for a specific campaign
  * @route   GET /api/proofs/campaign/:campaignId
  * @access  Public

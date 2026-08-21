@@ -214,8 +214,8 @@ export const AdminDashboard: React.FC = () => {
     },
     milestone: {
       id: p._id,
-      title: 'Milestone Phase Audit',
-      amount: p.campaignId?.targetAmount ? Math.round(p.campaignId.targetAmount / 3) : 3500,
+      title: p.milestonePhase || 'Milestone Phase Audit',
+      amount: p.amountRequested || (p.campaignId?.targetAmount ? Math.round(p.campaignId.targetAmount / 3) : 3500),
       proofText: p.title || 'No description provided.',
       proofDoc: p.ipfsCID ? `IPFS CID: ${p.ipfsCID.substring(0, 15)}...` : null,
       ipfsCID: p.ipfsCID,
