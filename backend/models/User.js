@@ -59,6 +59,11 @@ const UserSchema = new mongoose.Schema(
       enum: ['Pending', 'Approved', 'Rejected'],
       default: 'Pending',
     },
+    contactInfo: {
+      type: String,
+      default: '',
+      trim: true,
+    },
   },
   {
     timestamps: true, // Auto-adds createdAt and updatedAt fields

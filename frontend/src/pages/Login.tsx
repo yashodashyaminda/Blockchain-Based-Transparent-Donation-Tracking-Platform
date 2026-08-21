@@ -119,9 +119,9 @@ export const Login: React.FC<LoginProps> = ({ setActivePage }) => {
               <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                 Password
               </label>
-              <span className="text-[9px] font-medium text-trust-blue hover:underline cursor-pointer">
+              {/* <span className="text-[9px] font-medium text-trust-blue hover:underline cursor-pointer">
                 Forgot password?
-              </span>
+              </span> */}
             </div>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />

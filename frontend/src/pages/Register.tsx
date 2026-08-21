@@ -129,6 +129,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
       formData.append('role', 'NGO');
       formData.append('walletAddress', walletAddress || '');
       formData.append('registrationNumber', ngoRegNumber);
+      formData.append('contactInfo', ngoContactInfo);
       formData.append('file', selectedFile);
 
       setUploadProgress(60);
@@ -373,8 +374,8 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
-                          type="int"
-                          placeholder="+94 (555)0192"
+                          type="text"
+                          placeholder="+9470-5550192"
                           value={ngoContactInfo}
                           onChange={(e) => setNgoContactInfo(e.target.value)}
                           className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"

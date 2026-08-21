@@ -96,7 +96,7 @@ export const AdminDashboard: React.FC = () => {
     const fetchAdminData = async () => {
       try {
         // 1. Fetch unverified NGOs
-        const ngosResponse = await axiosInstance.get('/auth/users?role=NGO&isVerified=false');
+        const ngosResponse = await axiosInstance.get('/auth/users?role=NGO&isVerified=false&verificationStatus=Pending');
         if (ngosResponse.data && ngosResponse.data.success) {
           const mappedNgos = ngosResponse.data.data
             .map((u: any) => ({

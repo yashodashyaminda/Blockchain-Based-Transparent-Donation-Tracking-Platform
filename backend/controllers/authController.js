@@ -20,7 +20,7 @@ const generateToken = (id) => {
  * @access  Public
  */
 exports.register = async (req, res) => {
-  const { name, email, password, role, walletAddress, registrationNumber } = req.body;
+  const { name, email, password, role, walletAddress, registrationNumber, contactInfo } = req.body;
 
   try {
     // 1. Check if user already exists in the database
@@ -51,6 +51,7 @@ exports.register = async (req, res) => {
       isVerified,
       registrationNumber: registrationNumber || '',
       documentIpfsCID,
+      contactInfo: contactInfo || '',
     });
 
     // 5. Generate signed JWT token
@@ -67,8 +68,10 @@ exports.register = async (req, res) => {
         role: user.role,
         walletAddress: user.walletAddress,
         isVerified: user.isVerified,
+        verificationStatus: user.verificationStatus,
         registrationNumber: user.registrationNumber,
         documentIpfsCID: user.documentIpfsCID,
+        contactInfo: user.contactInfo,
       },
     });
   } catch (error) {
@@ -130,6 +133,10 @@ exports.login = async (req, res) => {
         role: user.role,
         walletAddress: user.walletAddress,
         isVerified: user.isVerified,
+        verificationStatus: user.verificationStatus,
+        registrationNumber: user.registrationNumber,
+        documentIpfsCID: user.documentIpfsCID,
+        contactInfo: user.contactInfo,
       },
     });
   } catch (error) {
@@ -307,6 +314,26 @@ exports.resubmitDocument = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Document re-submitted successfully. Pending Admin review.',
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Get current logged in user details
+ * @route   GET /api/auth/me
+ * @access  Private
+ */
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    return res.status(200).json({
+      success: true,
+      data: user,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

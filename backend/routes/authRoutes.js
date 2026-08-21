@@ -5,7 +5,10 @@ const {
     login,
     forgotPassword,
     verifyNGO,
-    getUsers
+    getUsers,
+    rejectNGO,
+    resubmitDocument,
+    getMe
 } = require('../controllers/authController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 const upload = require('../middleware/multerMiddleware');
@@ -14,6 +17,9 @@ const upload = require('../middleware/multerMiddleware');
  * Authentication Routes definition
  * Root base URL: /api/auth
  */
+
+// Get current logged in user details
+router.get('/me', verifyToken, getMe);
 
 // Route to register new users (Donors or NGOs) - Supports file upload for NGO registration certificate
 router.post('/register', upload.single('file'), register);
