@@ -51,6 +51,10 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
+      if (file.size > 1024 * 1024) {
+        alert('Verification document size must not exceed 1MB. Please select a smaller file.');
+        return;
+      }
       setSelectedFile(file);
       setUploadedFile({ name: file.name, size: `${(file.size / (1024 * 1024)).toFixed(1)} MB` });
       setUploadState('completed');
@@ -60,6 +64,11 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      if (file.size > 1024 * 1024) {
+        alert('Verification document size must not exceed 1MB. Please select a smaller file.');
+        e.target.value = '';
+        return;
+      }
       setSelectedFile(file);
       setUploadedFile({ name: file.name, size: `${(file.size / (1024 * 1024)).toFixed(1)} MB` });
       setUploadState('completed');
@@ -375,9 +384,12 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                           type="text"
-                          placeholder="+9470-5550192"
+                          placeholder="94705550192"
                           value={ngoContactInfo}
-                          onChange={(e) => setNgoContactInfo(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNgoContactInfo(val.replace(/\D/g, ''));
+                          }}
                           className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                         />
                       </div>

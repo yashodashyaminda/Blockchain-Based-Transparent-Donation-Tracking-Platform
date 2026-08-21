@@ -222,6 +222,7 @@ exports.verifyNGO = async (req, res) => {
 
     // Set isVerified to true (Approved)
     ngoUser.isVerified = true;
+    ngoUser.verificationStatus = 'Approved';
     await ngoUser.save();
 
     return res.status(200).json({

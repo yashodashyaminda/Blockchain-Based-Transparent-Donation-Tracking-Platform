@@ -206,7 +206,14 @@ export const NgoDashboard: React.FC = () => {
                 required
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {
-                    setResubmitFile(e.target.files[0]);
+                    const file = e.target.files[0];
+                    if (file.size > 1024 * 1024) {
+                      alert('Verification document size must not exceed 1MB. Please select a smaller file.');
+                      e.target.value = '';
+                      setResubmitFile(null);
+                      return;
+                    }
+                    setResubmitFile(file);
                   }
                 }}
                 className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 border border-slate-200 rounded-xl p-1 bg-slate-50"
