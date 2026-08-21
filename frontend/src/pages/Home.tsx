@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useWeb3 } from '../context/Web3Context';
+import { useAuth } from '../context/AuthContext';
 import { CinematicHero } from '../components/CinematicHero';
 import { BookOpen, Activity, AlertCircle, Send, CheckCircle2, RefreshCw, ArrowRight } from 'lucide-react';
 import axiosInstance from '../utils/axiosInstance';
 import type { Campaign } from '../context/Web3Context';
+import { DonationModal } from '../components/DonationModal';
 
 interface HomeProps {
   setActivePage: (page: string) => void;
@@ -13,6 +15,10 @@ interface HomeProps {
 
 export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId }) => {
   const { currentRole, isWalletConnected } = useWeb3();
+  const { user } = useAuth();
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -70,14 +76,23 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
   // Donation button router
   const handleDonateNow = (campaignId: string) => {
     setSelectedCampaignId(campaignId);
-    if (currentRole === 'guest' || !isWalletConnected) {
+    if (!user) {
       setActivePage('register');
-    } else if (currentRole === 'donor') {
-      setActivePage('donor-dashboard');
-    } else if (currentRole === 'ngo') {
-      setActivePage('ngo-dashboard');
-    } else if (currentRole === 'admin') {
-      setActivePage('admin-dashboard');
+      return;
+    }
+
+    if (user.role === 'Donor') {
+      const camp = campaigns.find(c => c.id === campaignId);
+      if (camp) {
+        setSelectedCampaign(camp);
+        setIsModalOpen(true);
+      }
+      return;
+    }
+
+    if (user.role === 'NGO' || user.role === 'Admin') {
+      alert('Only Donors can contribute to campaigns.');
+      return;
     }
   };
 
@@ -492,6 +507,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
           </motion.div>
         </div>
       </section>
+      {isModalOpen && <DonationModal selectedCampaign={selectedCampaign} onClose={() => { setSelectedCampaign(null); setIsModalOpen(false); }} />}
     </div>
   );
 };

@@ -94,11 +94,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
   return (
     <nav
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 px-6 md:px-12 flex items-center justify-between ${
-        isNavbarDark
-          ? 'bg-slate-950/95 backdrop-blur-md text-white border-b border-slate-800 py-3'
-          : 'bg-transparent py-5'
-      }`}
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 px-6 md:px-12 flex items-center justify-between ${isNavbarDark
+        ? 'bg-slate-950/95 backdrop-blur-md text-white border-b border-slate-800 py-3'
+        : 'bg-transparent py-5'
+        }`}
     >
       {/* Brand logo container - Clicking ANY part scrolls smoothly to top of Home */}
       <div
@@ -110,9 +109,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         </div>
         <div>
           <span
-            className={`font-heading font-extrabold text-lg tracking-tight transition-colors duration-200 ${
-              isNavbarDark ? 'text-white group-hover:text-blue-400' : 'text-slate-900 group-hover:text-blue-600'
-            }`}
+            className={`font-heading font-extrabold text-lg tracking-tight transition-colors duration-200 ${isNavbarDark ? 'text-white group-hover:text-blue-400' : 'text-slate-900 group-hover:text-blue-600'
+              }`}
           >
             ChainTrust
           </span>
@@ -127,15 +125,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         {currentRole === 'guest' && (
           <button
             onClick={() => scrollToSection('hero')}
-            className={`transition-colors duration-200 cursor-pointer ${
-              activePage === 'home' && activeSection === 'hero'
-                ? isNavbarDark
-                  ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
-                  : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-                : isNavbarDark
+            className={`transition-colors duration-200 cursor-pointer ${activePage === 'home' && activeSection === 'hero'
+              ? isNavbarDark
+                ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
+                : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+              : isNavbarDark
                 ? 'text-slate-200 hover:text-blue-400 font-medium'
                 : 'text-slate-800 hover:text-blue-600 font-medium'
-            }`}
+              }`}
           >
             Home
           </button>
@@ -143,60 +140,56 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
         <button
           onClick={() => scrollToSection('goal')}
-          className={`transition-colors duration-200 cursor-pointer ${
-            activePage === 'home' && activeSection === 'goal'
-              ? isNavbarDark
-                ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
-                : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isNavbarDark
+          className={`transition-colors duration-200 cursor-pointer ${activePage === 'home' && activeSection === 'goal'
+            ? isNavbarDark
+              ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
+              : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+            : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
-          }`}
+            }`}
         >
           Our Goal
         </button>
 
         <button
           onClick={() => scrollToSection('about')}
-          className={`transition-colors duration-200 cursor-pointer ${
-            activePage === 'home' && activeSection === 'about'
-              ? isNavbarDark
-                ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
-                : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isNavbarDark
+          className={`transition-colors duration-200 cursor-pointer ${activePage === 'home' && activeSection === 'about'
+            ? isNavbarDark
+              ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
+              : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+            : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
-          }`}
+            }`}
         >
           About Us
         </button>
 
         <button
           onClick={() => scrollToSection('campaigns')}
-          className={`transition-colors duration-200 cursor-pointer ${
-            activePage === 'home' && activeSection === 'campaigns'
-              ? isNavbarDark
-                ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
-                : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isNavbarDark
+          className={`transition-colors duration-200 cursor-pointer ${activePage === 'home' && activeSection === 'campaigns'
+            ? isNavbarDark
+              ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
+              : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+            : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
-          }`}
+            }`}
         >
           Campaigns
         </button>
 
         <button
           onClick={() => scrollToSection('contact')}
-          className={`transition-colors duration-200 cursor-pointer ${
-            activePage === 'home' && activeSection === 'contact'
-              ? isNavbarDark
-                ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
-                : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
-              : isNavbarDark
+          className={`transition-colors duration-200 cursor-pointer ${activePage === 'home' && activeSection === 'contact'
+            ? isNavbarDark
+              ? 'text-blue-400 font-bold border-b-2 border-blue-400 pb-0.5'
+              : 'text-blue-600 font-bold border-b-2 border-blue-600 pb-0.5'
+            : isNavbarDark
               ? 'text-slate-200 hover:text-blue-400 font-medium'
               : 'text-slate-800 hover:text-blue-600 font-medium'
-          }`}
+            }`}
         >
           Contact
         </button>
@@ -212,9 +205,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               else if (currentRole === 'ngo') setActivePage('ngo-dashboard');
               else setActivePage('donor-dashboard');
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors duration-200 cursor-pointer ${
-              isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors duration-200 cursor-pointer ${isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+              }`}
           >
             <LayoutDashboard size={14} className={isNavbarDark ? 'text-slate-300' : 'text-slate-600'} />
             <span>Workspace</span>
@@ -225,9 +217,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         {activePage !== 'home' && currentRole === 'guest' && (
           <button
             onClick={() => scrollToSection('hero')}
-            className={`p-2 rounded-xl transition-colors duration-200 cursor-pointer ${
-              isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-            }`}
+            className={`p-2 rounded-xl transition-colors duration-200 cursor-pointer ${isNavbarDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+              }`}
             title="Go to Home"
           >
             <Home size={16} />
@@ -244,11 +235,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
               </span>
             )}
             <div
-              className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${
-                isNavbarDark
-                  ? 'bg-slate-800 text-blue-400 border-slate-700'
-                  : 'bg-blue-50 text-blue-700 border-blue-100'
-              }`}
+              className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${isNavbarDark
+                ? 'bg-slate-800 text-blue-400 border-slate-700'
+                : 'bg-blue-50 text-blue-700 border-blue-100'
+                }`}
             >
               {currentRole === 'admin' ? (
                 <>
@@ -270,11 +260,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
             {/* Wallet Address Pill (Read-only indicator) */}
             <div
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm border ${
-                isNavbarDark
-                  ? 'bg-slate-900/60 border-slate-800 text-slate-300'
-                  : 'bg-slate-50 border-slate-200 text-slate-600'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm border ${isNavbarDark
+                ? 'bg-slate-900/60 border-slate-800 text-slate-300'
+                : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}
             >
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{truncateAddress(walletAddress)}</span>
@@ -283,11 +272,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
             {/* Explicit Logout Button */}
             <button
               onClick={handleLogout}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${
-                isNavbarDark
-                  ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400 hover:bg-red-950/20'
-                  : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${isNavbarDark
+                ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400 hover:bg-red-950/20'
+                : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
+                }`}
             >
               <LogOut size={14} />
               <span>Logout</span>
@@ -311,11 +299,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
             {/* Explicit Logout Button */}
             <button
               onClick={handleLogout}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${
-                isNavbarDark
-                  ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400 hover:bg-red-950/20'
-                  : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${isNavbarDark
+                ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-blue-500 hover:text-blue-400 hover:bg-red-950/20'
+                : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
+                }`}
             >
               <LogOut size={14} />
               <span>Logout</span>
@@ -326,13 +313,12 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
             {/* Login button */}
             <button
               onClick={() => setActivePage('login')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all active:scale-95 cursor-pointer ${
-                activePage === 'login'
-                  ? 'bg-blue-600 text-white shadow-blue-500/20 shadow-lg border border-blue-600 font-semibold'
-                  : isNavbarDark
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all active:scale-95 cursor-pointer ${activePage === 'login'
+                ? 'bg-blue-600 text-white shadow-blue-500/20 shadow-lg border border-blue-600 font-semibold'
+                : isNavbarDark
                   ? 'border border-slate-700 shadow-sm bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-blue-400 font-semibold hover:shadow-md'
                   : 'border border-slate-200 shadow-sm bg-white/60 hover:bg-white text-slate-800 hover:text-blue-600 font-semibold hover:shadow-md'
-              }`}
+                }`}
             >
               <LogIn size={14} />
               <span>Login</span>
@@ -341,13 +327,12 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
             {/* Register button */}
             <button
               onClick={() => setActivePage('register')}
-              className={`px-4 py-2 rounded-xl transition-all active:scale-95 cursor-pointer ${
-                activePage === 'register'
-                  ? 'bg-blue-600 text-white shadow-blue-500/20 shadow-lg border border-blue-600 font-semibold'
-                  : isNavbarDark
+              className={`px-4 py-2 rounded-xl transition-all active:scale-95 cursor-pointer ${activePage === 'register'
+                ? 'bg-blue-600 text-white shadow-blue-500/20 shadow-lg border border-blue-600 font-semibold'
+                : isNavbarDark
                   ? 'border border-slate-700 shadow-sm bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-blue-400 font-semibold hover:shadow-md'
                   : 'border border-slate-200 shadow-sm bg-white/60 hover:bg-white text-slate-800 hover:text-blue-600 font-semibold hover:shadow-md'
-              }`}
+                }`}
             >
               <span>Register</span>
             </button>
