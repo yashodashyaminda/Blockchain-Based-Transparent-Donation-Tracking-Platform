@@ -368,7 +368,13 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                           </div>
                           <button
                             onClick={() => handleDonateNow(campaign.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold text-white bg-slate-900 hover:bg-blue-600 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer whitespace-nowrap"
+                            disabled={user?.role === 'NGO'}
+                            title={user?.role === 'NGO' ? 'Only Donors can fund campaigns' : undefined}
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold shadow-sm transition-all duration-200 whitespace-nowrap ${
+                              user?.role === 'NGO'
+                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none'
+                                : 'text-white bg-slate-900 hover:bg-blue-600 hover:shadow-md cursor-pointer'
+                            }`}
                           >
                             <span>Donate Now</span>
                             <ArrowRight size={10} />

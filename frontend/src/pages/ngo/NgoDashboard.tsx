@@ -61,7 +61,8 @@ export const NgoDashboard: React.FC = () => {
 
   // Form states: Milestone Proof Submission
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState('');
+  const [milestonePhase, setMilestonePhase] = useState('Phase 1: Initial Allocation');
+  const [amountRequested, setAmountRequested] = useState('');
   const [proofText, setProofText] = useState('');
   const [proofFileName, setProofFileName] = useState('');
   const [proofUploadState, setProofUploadState] = useState<'idle' | 'uploading' | 'completed'>('idle');
@@ -93,9 +94,6 @@ export const NgoDashboard: React.FC = () => {
     fetchProfile();
   }, []);
 
-  // Selected Campaign milestones lookup helper
-  const selectedCampaign = fetchedCampaigns.find(c => c.id === selectedCampaignId);
-  const pendingMilestones = selectedCampaign?.milestones.filter(m => m.status === 'Pending') || [];
 
   // Project creation submit handler
   const handleAddProjectSubmit = async (e: React.FormEvent) => {
@@ -167,7 +165,7 @@ export const NgoDashboard: React.FC = () => {
   // Milestone submit handler using FormData
   const handleMilestoneProofSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCampaignId || !selectedMilestoneId || !proofText || !selectedFile) return;
+    if (!selectedCampaignId || !milestonePhase || !amountRequested || !proofText || !selectedFile) return;
 
     setProofUploadState('uploading');
     setProofUploadProgress(20);
@@ -175,6 +173,8 @@ export const NgoDashboard: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('campaignId', selectedCampaignId);
+      formData.append('milestonePhase', milestonePhase);
+      formData.append('amountRequested', amountRequested);
       formData.append('title', proofText); // Serves as title in proof model schema
       formData.append('file', selectedFile);
 
@@ -190,9 +190,13 @@ export const NgoDashboard: React.FC = () => {
 
       if (response.data && response.data.success) {
         // Also call Web3 local context sync to update UI state
+        const campaign = fetchedCampaigns.find(c => c.id === selectedCampaignId);
+        const matchedMilestone = campaign?.milestones.find(m => m.title.toLowerCase().includes(milestonePhase.toLowerCase()));
+        const targetMilestoneId = matchedMilestone?.id || (campaign?.milestones[0]?.id) || 'm1';
+
         addMilestoneProof(
           selectedCampaignId,
-          selectedMilestoneId,
+          targetMilestoneId,
           proofText,
           proofFileName
         );
@@ -200,7 +204,8 @@ export const NgoDashboard: React.FC = () => {
 
         setProofSubmittedSuccess(true);
         setSelectedCampaignId('');
-        setSelectedMilestoneId('');
+        setMilestonePhase('Phase 1: Initial Allocation');
+        setAmountRequested('');
         setProofText('');
         setProofFileName('');
         setSelectedFile(null);
@@ -334,7 +339,7 @@ export const NgoDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col gap-8 relative z-10">
-        
+
         {/* NGO Profile Header Banner */}
         <div className="cinematic-glass rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -346,11 +351,10 @@ export const NgoDashboard: React.FC = () => {
                 <h2 className="font-heading font-extrabold text-xl md:text-2xl text-slate-900">
                   NGO Tracking Room
                 </h2>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                  isVerified 
-                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
-                    : 'bg-amber-50 text-amber-600 border border-amber-200'
-                }`}>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${isVerified
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                  : 'bg-amber-50 text-amber-600 border border-amber-200'
+                  }`}>
                   {isVerified ? 'VERIFIED PARTNER' : 'VERIFICATION PENDING'}
                 </span>
               </div>
@@ -359,7 +363,7 @@ export const NgoDashboard: React.FC = () => {
               </p>
             </div>
           </div>
-          
+
           {/* Quick Metrics */}
           <div className="flex gap-4">
             <div className="px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-center shrink-0">
@@ -410,9 +414,9 @@ export const NgoDashboard: React.FC = () => {
         <div className="relative">
           {/* MAIN COMPONENTS GRID */}
           <div className="grid lg:grid-cols-12 gap-8">
-            
+
             {/* MODULE A: ADD PROJECT PLATFORM FORM */}
-            <div className="lg:col-span-5 flex flex-col gap-6">
+            <div className="lg:col-span-6 flex flex-col gap-6">
               <div className="bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm">
                 <div>
                   <h3 className="font-heading font-extrabold text-lg text-slate-900 flex items-center gap-2">
@@ -479,7 +483,7 @@ export const NgoDashboard: React.FC = () => {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Campaign Image Showcase</label>
-                    <div 
+                    <div
                       onClick={() => campaignFileInputRef.current?.click()}
                       className="border border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-100/50 transition-colors duration-200"
                     >
@@ -538,8 +542,8 @@ export const NgoDashboard: React.FC = () => {
             </div>
 
             {/* MODULE B: ADD MILESTONE PROOF DISPATCHER */}
-            <div className="lg:col-span-7 flex flex-col gap-6">
-              
+            <div className="lg:col-span-6 flex flex-col gap-6">
+
               <div className="bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm">
                 <div>
                   <h3 className="font-heading font-extrabold text-lg text-slate-900 flex items-center gap-2">
@@ -549,69 +553,85 @@ export const NgoDashboard: React.FC = () => {
                   <p className="text-xs text-slate-400 mt-1">Upload milestone evidence to unlock the next fund allocation.</p>
                 </div>
 
-                <form onSubmit={handleMilestoneProofSubmit} className="flex flex-col gap-5">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Select Campaign</label>
-                      <select
-                        required
-                        disabled={!isVerified}
-                        value={selectedCampaignId}
-                        onChange={(e) => {
-                          setSelectedCampaignId(e.target.value);
-                          setSelectedMilestoneId('');
-                        }}
-                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
-                      >
-                        <option value="">-- Choose Campaign --</option>
-                        {myCampaigns.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                <form onSubmit={handleMilestoneProofSubmit} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Select Campaign</label>
+                    <select
+                      required
+                      disabled={!isVerified}
+                      value={selectedCampaignId}
+                      onChange={(e) => {
+                        setSelectedCampaignId(e.target.value);
+                      }}
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
+                    >
+                      <option value="">-- Choose Campaign --</option>
+                      {myCampaigns.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
 
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Target Milestone Phase</label>
                       <select
                         required
                         disabled={!isVerified || !selectedCampaignId}
-                        value={selectedMilestoneId}
-                        onChange={(e) => setSelectedMilestoneId(e.target.value)}
+                        value={milestonePhase}
+                        onChange={(e) => setMilestonePhase(e.target.value)}
                         className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:opacity-50"
                       >
-                        <option value="">-- Choose Milestone --</option>
-                        {pendingMilestones.map(m => (
-                          <option key={m.id} value={m.id}>{m.title} (${m.amount.toLocaleString()})</option>
-                        ))}
+                        <option value="Phase 1: Initial Allocation">Phase 1: Initial Allocation</option>
+                        <option value="Phase 2: Intermediate Progress">Phase 2: Intermediate Progress</option>
+                        <option value="Phase 3: Final Completion">Phase 3: Final Completion</option>
+                        <option value="Emergency / Unplanned Expense">Emergency / Unplanned Expense</option>
                       </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Requested Amount ($ USD)</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        disabled={!isVerified || !selectedCampaignId}
+                        placeholder="e.g. 5000"
+                        value={amountRequested}
+                        onChange={(e) => setAmountRequested(e.target.value)}
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:opacity-50"
+                      />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Proof Evidence Details</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Proof Evidence Details</label>
+                      <span className="text-[9px] text-slate-400 font-medium">{proofText.length}/100</span>
+                    </div>
                     <textarea
                       required
                       rows={3}
-                      disabled={!isVerified || !selectedMilestoneId}
-                      placeholder="Describe work completed, lists items purchased, and details milestones reached..."
+                      maxLength={100}
+                      disabled={!isVerified || !selectedCampaignId}
+                      placeholder="Describe work completed, lists items purchased, and details milestones reached (max 100 chars)..."
                       value={proofText}
                       onChange={(e) => setProofText(e.target.value)}
-                      className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white resize-none"
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white resize-none disabled:opacity-50"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Upload Receipts / Document Proof</label>
-                    
+
                     <div
                       onClick={triggerProofUpload}
-                      className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 min-h-[120px] ${
-                        !selectedMilestoneId
+                      className={`border border-dashed rounded-xl p-4 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-100/50 transition-colors duration-200 ${!selectedCampaignId
                           ? 'opacity-40 pointer-events-none bg-slate-100/50 border-slate-200'
                           : proofUploadState === 'completed'
-                          ? 'border-milestone-green bg-emerald-50/10'
-                          : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-trust-blue'
-                      }`}
+                            ? 'border-milestone-green bg-emerald-50/10'
+                            : 'border-slate-200'
+                        }`}
                     >
                       <input
                         type="file"
@@ -621,19 +641,20 @@ export const NgoDashboard: React.FC = () => {
                         style={{ display: 'none' }}
                       />
                       {proofUploadState === 'idle' && (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <UploadCloud size={18} className="text-slate-400" />
-                          <span className="text-xs font-bold text-slate-700">Click to upload milestone invoice / proof document</span>
-                          <span className="text-[9px] text-slate-400">Simulates decentralized IPFS uploading node</span>
+                        <div className="flex flex-col items-center gap-1">
+                          <UploadCloud size={14} className="text-slate-400" />
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {proofFileName ? `Selected: ${proofFileName}` : 'Select Milestone Proof Document (Max 1MB)'}
+                          </span>
                         </div>
                       )}
 
                       {proofUploadState === 'uploading' && (
                         <div className="flex flex-col items-center gap-2.5 w-full max-w-[80%]">
-                          <RefreshCw className="animate-spin text-trust-blue" size={18} />
+                          <RefreshCw className="animate-spin text-trust-blue" size={14} />
                           <div className="w-full flex flex-col gap-1">
                             <div className="flex justify-between text-[8px] font-bold text-slate-500">
-                              <span>DEPLOYING TO INTERPLANETARY FILE SYSTEM (IPFS)...</span>
+                              <span>DEPLOYING TO IPFS...</span>
                               <span>{proofUploadProgress}%</span>
                             </div>
                             <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
@@ -645,12 +666,12 @@ export const NgoDashboard: React.FC = () => {
 
                       {proofUploadState === 'completed' && (
                         <div className="flex items-center gap-3 w-full px-4 text-left">
-                          <FileText size={16} className="text-emerald-600" />
-                          <div className="flex-grow">
-                            <span className="block text-[10px] font-bold text-slate-800">{proofFileName}</span>
-                            <span className="block text-[8px] text-slate-400">IPFS CID: QmYwAPJzn5KSXn...</span>
+                          <FileText size={14} className="text-emerald-600 animate-pulse" />
+                          <div className="flex-grow min-w-0">
+                            <span className="block text-[10px] font-bold text-slate-800 truncate">{proofFileName}</span>
+                            <span className="block text-[8px] text-slate-400 truncate">IPFS CID: QmYwAPJzn5KSXn...</span>
                           </div>
-                          <CheckCircle className="text-emerald-500" size={16} />
+                          <CheckCircle className="text-emerald-500 shrink-0" size={14} />
                         </div>
                       )}
                     </div>
@@ -658,7 +679,7 @@ export const NgoDashboard: React.FC = () => {
 
                   <button
                     type="submit"
-                    disabled={!isVerified || !selectedMilestoneId || proofUploadState !== 'completed' || proofSubmittedSuccess}
+                    disabled={!isVerified || !selectedCampaignId || !milestonePhase || !amountRequested || proofUploadState !== 'completed' || proofSubmittedSuccess}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-milestone-green shadow-md transition-all duration-300 cursor-pointer disabled:bg-slate-400 disabled:cursor-not-allowed"
                   >
                     {proofSubmittedSuccess ? (
@@ -704,7 +725,7 @@ export const NgoDashboard: React.FC = () => {
                     <div className="flex justify-between items-start gap-4">
                       <div>
                         <h4 className="font-heading font-bold text-base text-slate-900">{c.name}</h4>
-                        <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md mt-1 inline-block">ID: {c.id}</span>
+                        <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md mt-1 inline-block">ID: ...{c.id.slice(-5)}</span>
                       </div>
                       <span className="text-xs font-bold text-trust-blue bg-white border border-slate-200 px-3 py-1 rounded-xl">
                         Target: ${c.target.toLocaleString()}
@@ -726,16 +747,15 @@ export const NgoDashboard: React.FC = () => {
                       <div className="flex flex-col gap-1.5">
                         {c.milestones.map((m, idx) => (
                           <div key={m.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 text-xs">
-                            <span className="font-medium text-slate-700 line-clamp-1">{idx+1}. {m.title}</span>
+                            <span className="font-medium text-slate-700 line-clamp-1">{idx + 1}. {m.title}</span>
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-slate-500">${m.amount.toLocaleString()}</span>
-                              <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                                m.status === 'Released'
-                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                  : m.status === 'Approved'
+                              <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${m.status === 'Released'
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                : m.status === 'Approved'
                                   ? 'bg-amber-50 text-amber-600 border border-amber-200'
                                   : 'bg-slate-100 text-slate-400 border border-slate-200'
-                              }`}>
+                                }`}>
                                 {m.status === 'Released' ? 'Released' : m.status === 'Approved' ? 'Pending Approval' : 'Locked'}
                               </span>
                             </div>

@@ -1,8 +1,5 @@
 const mongoose = require('mongoose');
 
-/**
- * Proof Schema defining variables for NGO audit files, bills, or disbursement validation docs.
- */
 const ProofSchema = new mongoose.Schema(
   {
     campaignId: {
@@ -15,24 +12,39 @@ const ProofSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Please specify the author NGO uploading this proof file'],
     },
+    milestonePhase: {
+      type: String,
+      required: [true, 'Please select the target milestone phase'],
+      enum: [
+        'Phase 1: Initial Allocation',
+        'Phase 2: Intermediate Progress',
+        'Phase 3: Final Completion',
+        'Emergency / Unplanned Expense'
+      ],
+    },
+    amountRequested: {
+      type: Number,
+      required: [true, 'Please specify the requested amount'],
+      min: [0, 'Amount cannot be negative'],
+    },
     title: {
       type: String,
-      required: [true, 'Please specify a title or descriptive tag for this proof'],
+      required: [true, 'Please specify the evidence details'],
       trim: true,
-      maxlength: [100, 'Title cannot exceed 100 characters'],
+      maxlength: [100, 'Details cannot exceed 100 characters'],
     },
     ipfsCID: {
       type: String,
-      required: [true, 'Please provide the IPFS content identifier (CID) linked to the document'],
+      required: [true, 'Please provide the IPFS content identifier (CID)'],
       trim: true,
     },
     isApproved: {
       type: Boolean,
-      default: false, // Must be audited and approved by system Admins to authorize escrow payout releases
+      default: false,
     },
   },
   {
-    timestamps: true, // Auto-adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 
