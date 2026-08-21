@@ -238,7 +238,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         {/* Auth / Web3 Buttons */}
         {isWalletConnected ? (
           <div className="flex items-center gap-2">
-            {user?.name && (
+            {user?.name && currentRole === 'admin' && (
               <span className={`hidden md:inline text-xs font-semibold mr-1.5 ${isNavbarDark ? 'text-slate-300' : 'text-slate-700'}`}>
                 {user.name}
               </span>
@@ -295,7 +295,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           </div>
         ) : currentRole !== 'guest' ? (
           <div className="flex items-center gap-2">
-            {user?.name && (
+            {user?.name && currentRole === 'admin' && (
               <span className={`hidden md:inline text-xs font-semibold mr-1.5 ${isNavbarDark ? 'text-slate-300' : 'text-slate-700'}`}>
                 {user.name}
               </span>

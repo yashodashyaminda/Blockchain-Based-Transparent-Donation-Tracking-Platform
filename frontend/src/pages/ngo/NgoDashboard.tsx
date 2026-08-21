@@ -273,7 +273,7 @@ export const NgoDashboard: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-heading font-extrabold text-xl md:text-2xl text-slate-900">
-                  {user?.name || 'My NGO Hub'}
+                  NGO Tracking Room
                 </h2>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
                   isVerified 
@@ -284,7 +284,7 @@ export const NgoDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Official Email: {user?.email || 'N/A'} • Bound NGO Wallet: <span className="font-mono text-slate-700 font-semibold">{walletAddress || user?.walletAddress || 'Unbound'}</span>
+                Account: <span className="font-semibold text-slate-800">{user?.name || 'My NGO Hub'}</span> ({user?.email || 'ngo@email.com'}) • Bound NGO Wallet: <span className="font-mono text-slate-700 font-semibold">{walletAddress || user?.walletAddress || 'Unbound'}</span>
               </p>
             </div>
           </div>
