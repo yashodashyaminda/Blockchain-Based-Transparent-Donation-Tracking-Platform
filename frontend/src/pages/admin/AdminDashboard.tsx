@@ -7,7 +7,7 @@ import type { Campaign } from '../../context/Web3Context';
 import { ShieldCheck, Users, Wallet, BarChart3, Edit3, Trash2, CheckCircle2, FileSearch, ArrowRight, ShieldAlert, Plus, AlertCircle, RefreshCw, Building, Phone, Mail, FileText } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const { verifyNGO, validateMilestoneProof } = useWeb3();
+  const { verifyNGO, validateMilestoneProof, isWalletConnected, walletAddress, connectWallet } = useWeb3();
   const { user } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'crud' | 'metrics'>('approvals');
 
@@ -391,7 +391,7 @@ export const AdminDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Admin: <span className="font-semibold text-slate-800">{user?.name || 'System Admin'}</span> ({user?.email || 'admin@email.com'}) • Protocol Address: <span className="font-mono text-slate-600">{user?.walletAddress || '0x00AAd...C1275'}</span>
+                Admin: <span className="font-semibold text-slate-800">{user?.name || 'System Admin'}</span> ({user?.email || 'admin@email.com'}) • Protocol Address: <span className="font-mono text-slate-600">{walletAddress || 'Unbound'}</span>
               </p>
             </div>
           </div>
@@ -421,6 +421,37 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* POST-LOGIN WEB3 WALLET BINDING BANNER */}
+        {!isWalletConnected && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 rounded-3xl bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 border border-blue-900/50"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-trust-blue/20 border border-trust-blue/40 flex items-center justify-center text-trust-blue shadow-inner shrink-0">
+                <Wallet size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading font-extrabold text-lg text-white">Connect Admin Web3 Wallet</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-trust-blue/20 text-blue-300 border border-blue-400/30">Action Needed</span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  Connect your administrator wallet address to enable on-chain multi-sig approval of compliance documents and gasless transaction relays.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={connectWallet}
+              className="px-6 py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blue-hover text-white font-heading text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-lg glow-blue shrink-0 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Wallet size={16} />
+              <span>Connect & Bind Admin Wallet</span>
+            </button>
+          </motion.div>
+        )}
 
         {/* WORKSPACE SWITCHER AREA */}
         <div className="min-h-[480px]">

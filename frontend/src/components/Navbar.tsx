@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../context/Web3Context';
 import { useAuth } from '../context/AuthContext';
-import { Wallet, ShieldAlert, Award, User, LayoutDashboard, Home, LogIn, LogOut } from 'lucide-react';
+import { LayoutDashboard, Home, LogIn, LogOut } from 'lucide-react';
 
 interface NavbarProps {
   activePage: string;
@@ -9,8 +9,8 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => {
-  const { isWalletConnected, walletAddress, connectWallet, currentRole } = useWeb3();
-  const { logout, user } = useAuth();
+  const { currentRole } = useWeb3();
+  const { logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('hero');
 
@@ -80,11 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
     }, 50);
   };
 
-  // Truncate address helper
-  const truncateAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
-  };
+
 
   // Unified logout triggers Web2 logout and Web3 context resets
   const handleLogout = () => {
@@ -226,81 +222,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         )}
 
 
-        {/* Auth / Web3 Buttons */}
-        {isWalletConnected ? (
+        {/* Auth / Simplified Logged In Controls */}
+        {currentRole !== 'guest' ? (
           <div className="flex items-center gap-2">
-            {user?.name && currentRole === 'admin' && (
-              <span className={`hidden md:inline text-xs font-semibold mr-1.5 ${isNavbarDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                {user.name}
-              </span>
-            )}
-            <div
-              className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${isNavbarDark
-                ? 'bg-slate-800 text-blue-400 border-slate-700'
-                : 'bg-blue-50 text-blue-700 border-blue-100'
-                }`}
-            >
-              {currentRole === 'admin' ? (
-                <>
-                  <ShieldAlert size={12} className="text-blue-500" />
-                  <span>Admin</span>
-                </>
-              ) : currentRole === 'ngo' ? (
-                <>
-                  <Award size={12} className="text-blue-500" />
-                  <span>NGO</span>
-                </>
-              ) : (
-                <>
-                  <User size={12} className="text-blue-500" />
-                  <span>Donor</span>
-                </>
-              )}
-            </div>
-
-            {/* Wallet Address Pill (Read-only indicator) */}
-            <div
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm border ${isNavbarDark
-                ? 'bg-slate-900/60 border-slate-800 text-slate-300'
-                : 'bg-slate-50 border-slate-200 text-slate-600'
-                }`}
-            >
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{truncateAddress(walletAddress)}</span>
-            </div>
 
             {/* Explicit Logout Button */}
             <button
               onClick={handleLogout}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${isNavbarDark
                 ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-red-500 hover:text-red-400 hover:bg-red-950/20'
-                : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
-                }`}
-            >
-              <LogOut size={14} />
-              <span>Logout</span>
-            </button>
-          </div>
-        ) : currentRole !== 'guest' ? (
-          <div className="flex items-center gap-2">
-            {user?.name && currentRole === 'admin' && (
-              <span className={`hidden md:inline text-xs font-semibold mr-1.5 ${isNavbarDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                {user.name}
-              </span>
-            )}
-            <button
-              onClick={connectWallet}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-heading text-xs font-bold transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer"
-            >
-              <Wallet size={14} />
-              <span>Connect Web3 Wallet</span>
-            </button>
-
-            {/* Explicit Logout Button */}
-            <button
-              onClick={handleLogout}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-heading text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer ${isNavbarDark
-                ? 'bg-slate-800 border border-slate-700 text-slate-100 hover:border-blue-500 hover:text-blue-400 hover:bg-red-950/20'
                 : 'bg-white border border-slate-200 text-slate-800 hover:border-red-300 hover:text-red-600 hover:bg-red-50'
                 }`}
             >
