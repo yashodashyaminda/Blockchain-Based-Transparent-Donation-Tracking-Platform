@@ -16,6 +16,8 @@ export const AdminDashboard: React.FC = () => {
   const [pendingProofs, setPendingProofs] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [allCampaigns, setAllCampaigns] = useState<any[]>([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState<boolean>(false);
 
   // NGO Review states
   const [selectedNgoId, setSelectedNgoId] = useState<string>('');
@@ -121,21 +123,29 @@ export const AdminDashboard: React.FC = () => {
         }
 
         // 3. Fetch all campaigns
-        const campaignsResponse = await axiosInstance.get('/campaigns');
-        if (campaignsResponse.data && campaignsResponse.data.success) {
-          const mappedCampaigns = campaignsResponse.data.data.map((c: any) => ({
-            id: c._id,
-            name: c.title,
-            category: c.category,
-            description: c.description,
-            image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
-            target: c.targetAmount || 0,
-            raised: c.raisedAmount || 0,
-            ngoId: c.ngoId?._id || c.ngoId,
-            ngoName: c.ngoId?.name || 'Verified NGO',
-            milestones: c.milestones || [],
-          }));
-          setCampaigns(mappedCampaigns);
+        setLoadingCampaigns(true);
+        try {
+          const campaignsResponse = await axiosInstance.get('/campaigns');
+          if (campaignsResponse.data && campaignsResponse.data.success) {
+            setAllCampaigns(campaignsResponse.data.data);
+            const mappedCampaigns = campaignsResponse.data.data.map((c: any) => ({
+              id: c._id,
+              name: c.title,
+              category: c.category,
+              description: c.description,
+              image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
+              target: c.targetAmount || 0,
+              raised: c.raisedAmount || 0,
+              ngoId: c.ngoId?._id || c.ngoId,
+              ngoName: c.ngoId?.name || 'Verified NGO',
+              milestones: c.milestones || [],
+            }));
+            setCampaigns(mappedCampaigns);
+          }
+        } catch (campaignErr) {
+          console.error('Failed to fetch campaigns inside AdminDashboard:', campaignErr);
+        } finally {
+          setLoadingCampaigns(false);
         }
 
         // 4. Fetch all donations/transactions
@@ -157,7 +167,7 @@ export const AdminDashboard: React.FC = () => {
     };
 
     fetchAdminData();
-  }, []);
+  }, [activeSubTab]);
 
   // Handle NGO approvals
   const selectedNgo = pendingNgos.find(n => n.id === selectedNgoId) || pendingNgos[0];
@@ -255,14 +265,17 @@ export const AdminDashboard: React.FC = () => {
       });
 
       if (response.data && response.data.success) {
+        const fetchedCampaign = response.data.campaign;
+        setAllCampaigns(prev => [...prev, fetchedCampaign]);
+
         const newCampaign = {
-          id: response.data.campaign._id,
-          name: response.data.campaign.title,
-          category: response.data.campaign.category,
-          description: response.data.campaign.description,
+          id: fetchedCampaign._id,
+          name: fetchedCampaign.title,
+          category: fetchedCampaign.category,
+          description: fetchedCampaign.description,
           image: '/assets/images/4.png',
-          target: response.data.campaign.targetAmount,
-          raised: response.data.campaign.raisedAmount,
+          target: fetchedCampaign.targetAmount,
+          raised: fetchedCampaign.raisedAmount,
           ngoId: user?.id,
           ngoName: user?.name || 'Admin',
           milestones: [],
@@ -292,6 +305,12 @@ export const AdminDashboard: React.FC = () => {
       });
 
       if (response.data && response.data.success) {
+        setAllCampaigns(prev => prev.map(c => c._id === id ? {
+          ...c,
+          title: editName,
+          targetAmount: editTarget,
+          category: editCat
+        } : c));
         setCampaigns(prev => prev.map(c => c.id === id ? {
           ...c,
           name: editName,
@@ -312,6 +331,7 @@ export const AdminDashboard: React.FC = () => {
     try {
       const response = await axiosInstance.delete(`/campaigns/${id}`);
       if (response.data && response.data.success) {
+        setAllCampaigns(prev => prev.filter(c => c._id !== id));
         setCampaigns(prev => prev.filter(c => c.id !== id));
         alert('Campaign deleted successfully!');
       }
@@ -322,9 +342,9 @@ export const AdminDashboard: React.FC = () => {
 
   // Set initial editing states
   const startEditing = (c: any) => {
-    setEditingCampaignId(c.id);
-    setEditName(c.name);
-    setEditTarget(c.target);
+    setEditingCampaignId(c._id);
+    setEditName(c.title);
+    setEditTarget(c.targetAmount);
     setEditCat(c.category);
   };
 
@@ -711,101 +731,124 @@ export const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {campaigns.map(c => {
-                        const isEditing = editingCampaignId === c.id;
-                        return (
-                          <tr key={c.id} className="hover:bg-slate-50/20">
-                            {/* Name details */}
-                            <td className="px-5 py-4">
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  className="px-2 py-1 border border-slate-200 rounded text-xs w-full"
-                                />
-                              ) : (
-                                <div>
-                                  <span className="font-bold text-slate-900 block">{c.name}</span>
-                                  <span className="text-[9px] text-slate-400 block mt-0.5">NGO Owner: {c.ngoName} • ID: {c.id}</span>
-                                </div>
-                              )}
-                            </td>
-
-                            {/* Category */}
-                            <td className="px-5 py-4">
-                              {isEditing ? (
-                                <select
-                                  value={editCat}
-                                  onChange={(e) => setEditCat(e.target.value as Campaign['category'])}
-                                  className="px-2 py-1 border border-slate-200 rounded text-xs bg-white"
-                                >
-                                  <option value="Education">Education</option>
-                                  <option value="Health">Health</option>
-                                  <option value="Disaster Relief">Disaster Relief</option>
-                                </select>
-                              ) : (
-                                <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-medium text-slate-600">
-                                  {c.category}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Financial target */}
-                            <td className="px-5 py-4">
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  value={editTarget}
-                                  onChange={(e) => setEditTarget(parseFloat(e.target.value))}
-                                  className="px-2 py-1 border border-slate-200 rounded text-xs w-[100px]"
-                                />
-                              ) : (
-                                <span className="font-bold text-slate-800">${c.target.toLocaleString()}</span>
-                              )}
-                            </td>
-
-                            {/* CRUD buttons */}
-                            <td className="px-5 py-4 text-center">
-                              <div className="flex items-center justify-center gap-2">
+                      {loadingCampaigns ? (
+                        <tr>
+                          <td colSpan={4} className="px-5 py-8 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <RefreshCw size={20} className="animate-spin text-purple-600" />
+                              <span>Loading campaigns...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : allCampaigns.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-5 py-8 text-center text-slate-400">
+                            No campaigns found
+                          </td>
+                        </tr>
+                      ) : (
+                        allCampaigns.map(c => {
+                          const isEditing = editingCampaignId === c._id;
+                          return (
+                            <tr key={c._id} className="hover:bg-slate-50/20">
+                              {/* Name details */}
+                              <td className="px-5 py-4">
                                 {isEditing ? (
-                                  <>
-                                    <button
-                                      onClick={() => handleSaveEdit(c.id)}
-                                      className="px-3 py-1 bg-slate-950 text-white rounded text-[10px] font-bold hover:bg-emerald-600 cursor-pointer"
-                                    >
-                                      Save
-                                    </button>
-                                    <button
-                                      onClick={() => setEditingCampaignId(null)}
-                                      className="px-3 py-1 border border-slate-200 text-slate-500 rounded text-[10px] font-bold hover:bg-slate-50 cursor-pointer"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </>
+                                  <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="px-2 py-1 border border-slate-200 rounded text-xs w-full"
+                                  />
                                 ) : (
-                                  <>
-                                    <button
-                                      onClick={() => startEditing(c)}
-                                      className="p-1.5 rounded-lg border border-slate-100 hover:border-slate-200 text-slate-500 hover:text-slate-900 transition-colors duration-200 cursor-pointer bg-white"
-                                      title="Edit campaign data"
-                                    >
-                                      <Edit3 size={12} />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteCampaign(c.id)}
-                                      className="p-1.5 rounded-lg border border-slate-100 hover:border-red-200 text-slate-500 hover:text-red-500 hover:bg-red-50/50 transition-colors duration-200 cursor-pointer bg-white"
-                                      title="Delete campaign"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </>
+                                  <div>
+                                    <span className="font-bold text-slate-900 block">{c.title}</span>
+                                    <span className="text-[9px] text-slate-400 block mt-0.5">
+                                      NGO Owner: {c.ngoId?.name || 'Verified NGO'} • ID: {c._id}
+                                      {c.status && ` • Status: ${c.status}`}
+                                    </span>
+                                  </div>
                                 )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              </td>
+
+                              {/* Category */}
+                              <td className="px-5 py-4">
+                                {isEditing ? (
+                                  <select
+                                    value={editCat}
+                                    onChange={(e) => setEditCat(e.target.value as Campaign['category'])}
+                                    className="px-2 py-1 border border-slate-200 rounded text-xs bg-white"
+                                  >
+                                    <option value="Education">Education</option>
+                                    <option value="Health">Health</option>
+                                    <option value="Disaster Relief">Disaster Relief</option>
+                                  </select>
+                                ) : (
+                                  <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-medium text-slate-600">
+                                    {c.category}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Financial target */}
+                              <td className="px-5 py-4">
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    value={editTarget}
+                                    onChange={(e) => setEditTarget(parseFloat(e.target.value))}
+                                    className="px-2 py-1 border border-slate-200 rounded text-xs w-[100px]"
+                                  />
+                                ) : (
+                                  <span className="font-bold text-slate-800">
+                                    ${c.targetAmount?.toLocaleString() || '0'}
+                                    {c.raisedAmount !== undefined && ` (Raised: $${c.raisedAmount.toLocaleString()})`}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* CRUD buttons */}
+                              <td className="px-5 py-4 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  {isEditing ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleSaveEdit(c._id)}
+                                        className="px-3 py-1 bg-slate-950 text-white rounded text-[10px] font-bold hover:bg-emerald-600 cursor-pointer"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingCampaignId(null)}
+                                        className="px-3 py-1 border border-slate-200 text-slate-500 rounded text-[10px] font-bold hover:bg-slate-50 cursor-pointer"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => startEditing(c)}
+                                        className="p-1.5 rounded-lg border border-slate-100 hover:border-slate-200 text-slate-500 hover:text-slate-900 transition-colors duration-200 cursor-pointer bg-white"
+                                        title="Edit campaign data"
+                                      >
+                                        <Edit3 size={12} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteCampaign(c._id)}
+                                        className="p-1.5 rounded-lg border border-slate-100 hover:border-red-200 text-slate-500 hover:text-red-500 hover:bg-red-50/50 transition-colors duration-200 cursor-pointer bg-white"
+                                        title="Delete campaign"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useWeb3 } from '../context/Web3Context';
 import { CinematicHero } from '../components/CinematicHero';
 import { BookOpen, Activity, AlertCircle, Send, CheckCircle2, RefreshCw, ArrowRight } from 'lucide-react';
+import axiosInstance from '../utils/axiosInstance';
+import type { Campaign } from '../context/Web3Context';
 
 interface HomeProps {
   setActivePage: (page: string) => void;
@@ -10,7 +12,9 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId }) => {
-  const { campaigns, currentRole, isWalletConnected } = useWeb3();
+  const { currentRole, isWalletConnected } = useWeb3();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,6 +22,35 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
 
   // Carousel sliding state index
   const [campaignStartIndex, setCampaignStartIndex] = useState(0);
+
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      setIsLoading(true);
+      try {
+        const response = await axiosInstance.get('/campaigns');
+        if (response.data && response.data.success) {
+          const mapped = response.data.data.map((c: any) => ({
+            id: c._id,
+            name: c.title,
+            category: c.category || 'Education',
+            description: c.description,
+            image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
+            target: c.targetAmount || 0,
+            raised: c.raisedAmount || 0,
+            ngoId: c.ngoId?._id || c.ngoId,
+            ngoName: c.ngoId?.name || 'Verified NGO',
+            milestones: c.milestones || [],
+          }));
+          setCampaigns(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to load campaigns in Home:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCampaigns();
+  }, []);
 
   // Form submission handler
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -71,6 +104,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
   const handleNextCampaign = () => {
     setCampaignStartIndex((prev) => Math.min(maxCampaignIndex, prev + 1));
   };
+
 
   return (
     <div className="w-full overflow-x-hidden">
@@ -256,68 +290,80 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
 
             {/* Carousel Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {visibleCampaigns.map((campaign) => {
-                const percentage = Math.min(100, Math.round((campaign.raised / campaign.target) * 100));
-                return (
-                  <motion.div
-                    key={campaign.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="group relative bg-white rounded-2xl border border-slate-200 hover:border-blue-400 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col"
-                  >
-                    {/* Compact Media Showcase */}
-                    <div className="relative h-40 w-full overflow-hidden bg-slate-100">
-                      <img
-                        src={campaign.image}
-                        alt={campaign.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
+              {isLoading ? (
+                <div className="col-span-3 py-16 flex flex-col items-center justify-center gap-3 text-slate-400">
+                  <RefreshCw className="animate-spin text-blue-600" size={32} />
+                  <span className="text-sm font-medium">Loading campaigns...</span>
+                </div>
+              ) : campaigns.length === 0 ? (
+                <div className="col-span-3 py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
+                  <AlertCircle size={32} className="text-slate-300" />
+                  <span className="text-sm font-medium">No campaigns available currently.</span>
+                </div>
+              ) : (
+                visibleCampaigns.map((campaign) => {
+                  const percentage = Math.min(100, Math.round((campaign.raised / campaign.target) * 100));
+                  return (
+                    <motion.div
+                      key={campaign.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="group relative bg-white rounded-2xl border border-slate-200 hover:border-blue-400 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col"
+                    >
+                      {/* Compact Media Showcase */}
+                      <div className="relative h-40 w-full overflow-hidden bg-slate-100">
+                        <img
+                          src={campaign.image}
+                          alt={campaign.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
 
-                      {/* Category badge */}
-                      <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-white/95 border border-white/60 shadow-sm backdrop-blur-sm flex items-center gap-1.5">
-                        {getCategoryIcon(campaign.category)}
-                        <span className="text-[9px] font-bold tracking-wide text-slate-700">
-                          {campaign.category}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Card Content with p-4 sm:p-5 padding */}
-                    <div className="p-4 sm:p-5 flex flex-col flex-grow gap-2.5">
-                      <h3 className="font-heading font-extrabold text-sm md:text-base text-slate-900 group-hover:text-blue-600 transition-colors duration-200 leading-snug line-clamp-1">
-                        {campaign.name}
-                      </h3>
-                      <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">
-                        {campaign.description}
-                      </p>
-
-                      {/* Bottom metrics + action */}
-                      <div className="flex items-center gap-3 mt-auto pt-2 border-t border-slate-100">
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-slate-900">
-                            ${campaign.raised.toLocaleString()}
+                        {/* Category badge */}
+                        <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-white/95 border border-white/60 shadow-sm backdrop-blur-sm flex items-center gap-1.5">
+                          {getCategoryIcon(campaign.category)}
+                          <span className="text-[9px] font-bold tracking-wide text-slate-700">
+                            {campaign.category}
                           </span>
-                          <span className="text-[9px] text-slate-400">Target: ${campaign.target.toLocaleString()}</span>
                         </div>
-                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-600 rounded-full"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <button
-                          onClick={() => handleDonateNow(campaign.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold text-white bg-slate-900 hover:bg-blue-600 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer whitespace-nowrap"
-                        >
-                          <span>Donate Now</span>
-                          <ArrowRight size={10} />
-                        </button>
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+
+                      {/* Card Content with p-4 sm:p-5 padding */}
+                      <div className="p-4 sm:p-5 flex flex-col flex-grow gap-2.5">
+                        <h3 className="font-heading font-extrabold text-sm md:text-base text-slate-900 group-hover:text-blue-600 transition-colors duration-200 leading-snug line-clamp-1">
+                          {campaign.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">
+                          {campaign.description}
+                        </p>
+
+                        {/* Bottom metrics + action */}
+                        <div className="flex items-center gap-3 mt-auto pt-2 border-t border-slate-100">
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-bold text-slate-900">
+                              ${campaign.raised.toLocaleString()}
+                            </span>
+                            <span className="text-[9px] text-slate-400">Target: ${campaign.target.toLocaleString()}</span>
+                          </div>
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-600 rounded-full"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleDonateNow(campaign.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold text-white bg-slate-900 hover:bg-blue-600 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer whitespace-nowrap"
+                          >
+                            <span>Donate Now</span>
+                            <ArrowRight size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
             </div>
 
             {/* Right side navigation arrow */}

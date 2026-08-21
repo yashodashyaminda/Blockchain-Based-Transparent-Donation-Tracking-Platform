@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axiosInstance from '../utils/axiosInstance';
 
 // Types
 export interface NGO {
@@ -88,6 +89,7 @@ interface Web3ContextType {
 
   // Helpers
   resetState: () => void;
+  refreshCampaigns: () => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -118,129 +120,7 @@ const initialNGOs: NGO[] = [
   }
 ];
 
-const initialCampaigns: Campaign[] = [
-  {
-    id: 'proj-1',
-    name: 'Pure Water Initiative',
-    category: 'Health',
-    description: 'Providing sustainable solar-powered clean water purification systems to remote rural villages experiencing critical water scarcity.',
-    image: '/assets/images/4.png',
-    target: 5000,
-    raised: 3500,
-    ngoId: 'ngo-1',
-    ngoName: 'Global Care Alliance',
-    milestones: [
-      {
-        id: 'ms-1-1',
-        title: 'Geological Drilling & Pump Purchase',
-        amount: 2000,
-        status: 'Released',
-        proofText: 'Successfully completed drilling up to 150m. Purchased solar pumping hardware.',
-        proofDoc: 'drilling_invoice.pdf',
-        transactionHash: '0x43b2f88ea285f2ea71ca84ae9db193bde7cf2b489aef41b6c08adcf259ab114a'
-      },
-      {
-        id: 'ms-1-2',
-        title: 'Water Filtration Units Deployment',
-        amount: 2000,
-        status: 'Approved',
-        proofText: 'Filtration housing constructed. Sand filters installed.',
-        proofDoc: 'filtration_completion_log.pdf',
-        transactionHash: '0x89adeff7e9301bc24aaef8818c7ea8924b17b3892ae8cb080b0b81c7efcd829a'
-      },
-      {
-        id: 'ms-1-3',
-        title: 'Pipeline Integration & Training',
-        amount: 1000,
-        status: 'Pending'
-      }
-    ]
-  },
-  {
-    id: 'proj-2',
-    name: 'Tech Kids Academy',
-    category: 'Education',
-    description: 'Equipping underprivileged kids in municipal areas with coding kits, computers, and mentors to unlock digital age opportunities.',
-    image: '/assets/images/4.png',
-    target: 8000,
-    raised: 4000,
-    ngoId: 'ngo-1',
-    ngoName: 'Global Care Alliance',
-    milestones: [
-      {
-        id: 'ms-2-1',
-        title: '15 Laptop Workstations Procurement',
-        amount: 4000,
-        status: 'Released',
-        proofText: 'Procured 15 laptops and loaded curriculum materials.',
-        proofDoc: 'laptops_delivery_receipt.pdf',
-        transactionHash: '0xfaec47bc98129da47e091b6cf1b0a682da0892eb094a6e0c08decf276ab091b8'
-      },
-      {
-        id: 'ms-2-2',
-        title: 'Learning Lab Broadband & Mentors',
-        amount: 4000,
-        status: 'Pending'
-      }
-    ]
-  },
-  {
-    id: 'proj-3',
-    name: 'Solar Grid Empowerment',
-    category: 'Disaster Relief',
-    description: 'Deploying off-grid solar generators and storage microgrids to rural healthcare facilities to assure power audit reliability.',
-    image: '/assets/images/4.png',
-    target: 12000,
-    raised: 9500,
-    ngoId: 'ngo-1',
-    ngoName: 'Global Care Alliance',
-    milestones: [
-      {
-        id: 'ms-3-1',
-        title: 'Solar Panels & Battery Procurement',
-        amount: 6000,
-        status: 'Released',
-        proofText: 'Sourced 40 highly efficient monocrystalline solar panels and modular lithium storage batteries.',
-        proofDoc: 'solar_procurement.pdf',
-        transactionHash: '0x12bcf88ea285f2ea71ca84ae9db193bde7cf2b489aef41b6c08adcf259abff22'
-      },
-      {
-        id: 'ms-3-2',
-        title: 'Microgrid Installation & Integration',
-        amount: 6000,
-        status: 'Pending'
-      }
-    ]
-  },
-  {
-    id: 'proj-4',
-    name: 'Ocean Reforestation Trust',
-    category: 'Disaster Relief',
-    description: 'Restoring critical mangrove forests and seagrass habitats to build resilient natural barriers against recurring storm surges.',
-    image: '/assets/images/4.png',
-    target: 6500,
-    raised: 2000,
-    ngoId: 'ngo-1',
-    ngoName: 'Global Care Alliance',
-    milestones: [
-      {
-        id: 'ms-4-1',
-        title: 'Mangrove Seedlings Sourcing',
-        amount: 3000,
-        status: 'Released',
-        proofText: 'Sourced 10,000 local mangrove seedlings. Initiated nursery operations.',
-        proofDoc: 'nursery_logistics.pdf',
-        transactionHash: '0xde9b3b8ea285f2ea71ca84ae9db193bde7cf2b489aef41b6c08adcf259ab9981'
-      },
-      {
-        id: 'ms-4-2',
-        title: 'Nursery Setup & Planting Phase',
-        amount: 3500,
-        status: 'Pending'
-      }
-    ]
-  }
-];
+const initialCampaigns: Campaign[] = [];
 
 const initialTransactions: Transaction[] = [
   {
@@ -295,6 +175,33 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem('transaction_registry');
     return saved ? JSON.parse(saved) : initialTransactions;
   });
+
+  const refreshCampaigns = React.useCallback(async () => {
+    try {
+      const response = await axiosInstance.get('/campaigns');
+      if (response.data && response.data.success) {
+        const mapped = response.data.data.map((c: any) => ({
+          id: c._id,
+          name: c.title,
+          category: c.category || 'Education',
+          description: c.description,
+          image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
+          target: c.targetAmount || 0,
+          raised: c.raisedAmount || 0,
+          ngoId: c.ngoId?._id || c.ngoId,
+          ngoName: c.ngoId?.name || 'Verified NGO',
+          milestones: c.milestones || [],
+        }));
+        setCampaigns(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to load campaigns in Web3Context:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshCampaigns();
+  }, []);
 
   // Sync state with LocalStorage
   useEffect(() => {
@@ -621,7 +528,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         addMilestoneProof,
         validateMilestoneProof,
         transactions,
-        resetState
+        resetState,
+        refreshCampaigns
       }}
     >
       {children}

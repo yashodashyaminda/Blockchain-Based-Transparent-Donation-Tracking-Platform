@@ -7,13 +7,46 @@ import type { Campaign } from '../../context/Web3Context';
 import { Award, AlertTriangle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw, Wallet } from 'lucide-react';
 
 export const NgoDashboard: React.FC = () => {
-  const { campaigns, addCampaign, addMilestoneProof, isWalletConnected, walletAddress, bindWalletToProfile } = useWeb3();
+  const { addMilestoneProof, isWalletConnected, walletAddress, bindWalletToProfile, refreshCampaigns } = useWeb3();
   const { user, login } = useAuth();
 
   const isVerified = user?.isVerified || false;
 
+  const [fetchedCampaigns, setFetchedCampaigns] = useState<Campaign[]>([]);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState<boolean>(true);
+
+  const fetchCampaignsData = async () => {
+    setIsLoadingCampaigns(true);
+    try {
+      const response = await axiosInstance.get('/campaigns');
+      if (response.data && response.data.success) {
+        const mapped = response.data.data.map((c: any) => ({
+          id: c._id,
+          name: c.title,
+          category: c.category || 'Education',
+          description: c.description,
+          image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
+          target: c.targetAmount || 0,
+          raised: c.raisedAmount || 0,
+          ngoId: c.ngoId?._id || c.ngoId,
+          ngoName: c.ngoId?.name || 'Verified NGO',
+          milestones: c.milestones || [],
+        }));
+        setFetchedCampaigns(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch campaigns in NgoDashboard:', err);
+    } finally {
+      setIsLoadingCampaigns(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCampaignsData();
+  }, [user]);
+
   // Filter campaigns created by this NGO
-  const myCampaigns = campaigns.filter(c => c.ngoId === user?.id);
+  const myCampaigns = fetchedCampaigns.filter(c => c.ngoId === user?.id);
 
   // Form states: Add Project
   const [projName, setProjName] = useState('');
@@ -21,6 +54,10 @@ export const NgoDashboard: React.FC = () => {
   const [projTarget, setProjTarget] = useState('');
   const [projCat, setProjCat] = useState<Campaign['category']>('Education');
   const [projectCreatedSuccess, setProjectCreatedSuccess] = useState(false);
+  const [campaignFile, setCampaignFile] = useState<File | null>(null);
+  const [campaignFileName, setCampaignFileName] = useState('');
+  const [isLaunchingCampaign, setIsLaunchingCampaign] = useState(false);
+  const campaignFileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states: Milestone Proof Submission
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
@@ -43,7 +80,11 @@ export const NgoDashboard: React.FC = () => {
       try {
         const res = await axiosInstance.get('/auth/me');
         if (res.data && res.data.success) {
-          login(localStorage.getItem('token') || '', res.data.data);
+          const profileData = {
+            ...res.data.data,
+            id: res.data.data._id || res.data.data.id
+          };
+          login(localStorage.getItem('token') || '', profileData);
         }
       } catch (err) {
         console.error('Failed to sync profile status:', err);
@@ -53,29 +94,58 @@ export const NgoDashboard: React.FC = () => {
   }, []);
 
   // Selected Campaign milestones lookup helper
-  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
+  const selectedCampaign = fetchedCampaigns.find(c => c.id === selectedCampaignId);
   const pendingMilestones = selectedCampaign?.milestones.filter(m => m.status === 'Pending') || [];
 
   // Project creation submit handler
-  const handleAddProjectSubmit = (e: React.FormEvent) => {
+  const handleAddProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projName || !projDesc || !projTarget) return;
+    if (!projName || !projDesc || !projTarget) {
+      alert('Please fill out all fields');
+      return;
+    }
 
-    addCampaign(
-      projName,
-      projCat,
-      projDesc,
-      '/assets/images/4.png',
-      parseFloat(projTarget)
-    );
+    if (!campaignFile) {
+      alert('Please upload a cover image file for the campaign proposal');
+      return;
+    }
 
-    setProjectCreatedSuccess(true);
-    setProjName('');
-    setProjDesc('');
-    setProjTarget('');
-    setProjCat('Education');
+    setIsLaunchingCampaign(true);
+    try {
+      const formData = new FormData();
+      formData.append('title', projName);
+      formData.append('description', projDesc);
+      formData.append('targetAmount', projTarget);
+      formData.append('category', projCat);
+      formData.append('file', campaignFile);
 
-    setTimeout(() => setProjectCreatedSuccess(false), 4000);
+      const response = await axiosInstance.post('/campaigns', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data && response.data.success) {
+        setProjectCreatedSuccess(true);
+        setProjName('');
+        setProjDesc('');
+        setProjTarget('');
+        setProjCat('Education');
+        setCampaignFile(null);
+        setCampaignFileName('');
+
+        // Reload the dynamic campaigns list to update "My Projects" counts instantly
+        await refreshCampaigns();
+        await fetchCampaignsData();
+
+        alert('Campaign Proposal Launched successfully!');
+        setTimeout(() => setProjectCreatedSuccess(false), 4000);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to launch campaign proposal');
+    } finally {
+      setIsLaunchingCampaign(false);
+    }
   };
 
   // Trigger file selection programmatically when user clicks container
@@ -126,6 +196,7 @@ export const NgoDashboard: React.FC = () => {
           proofText,
           proofFileName
         );
+        await fetchCampaignsData();
 
         setProofSubmittedSuccess(true);
         setSelectedCampaignId('');
@@ -408,18 +479,49 @@ export const NgoDashboard: React.FC = () => {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Campaign Image Showcase</label>
-                    <div className="border border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50 flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-100/50 transition-colors duration-200">
+                    <div 
+                      onClick={() => campaignFileInputRef.current?.click()}
+                      className="border border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-100/50 transition-colors duration-200"
+                    >
                       <UploadCloud size={14} className="text-slate-400" />
-                      <span className="text-[10px] text-slate-500 font-medium">Automatic placeholder assigned (heartwarming photograph)</span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {campaignFileName ? `Selected: ${campaignFileName}` : 'Select Campaign Cover Image (Max 1MB)'}
+                      </span>
                     </div>
+                    <input
+                      type="file"
+                      ref={campaignFileInputRef}
+                      accept="image/*"
+                      disabled={!isVerified}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          const file = e.target.files[0];
+                          if (file.size > 1024 * 1024) {
+                            alert('Campaign cover image must not exceed 1MB. Please select a smaller file.');
+                            e.target.value = '';
+                            setCampaignFile(null);
+                            setCampaignFileName('');
+                            return;
+                          }
+                          setCampaignFile(file);
+                          setCampaignFileName(file.name);
+                        }
+                      }}
+                      className="hidden"
+                    />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={!isVerified || projectCreatedSuccess}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-trust-blue shadow-md transition-all duration-300 mt-2 cursor-pointer"
+                    disabled={!isVerified || projectCreatedSuccess || isLaunchingCampaign}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-trust-blue shadow-md transition-all duration-300 mt-2 cursor-pointer disabled:bg-slate-400 disabled:cursor-not-allowed"
                   >
-                    {projectCreatedSuccess ? (
+                    {isLaunchingCampaign ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin text-white" />
+                        <span>Launching & Uploading to IPFS...</span>
+                      </>
+                    ) : projectCreatedSuccess ? (
                       <>
                         <CheckCircle size={14} className="text-emerald-300" />
                         <span>Campaign Launched Successfully</span>
@@ -584,7 +686,12 @@ export const NgoDashboard: React.FC = () => {
             <p className="text-xs text-slate-400 mt-1">Review active contracts and milestone releases.</p>
           </div>
 
-          {myCampaigns.length === 0 ? (
+          {isLoadingCampaigns ? (
+            <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center gap-3">
+              <RefreshCw size={24} className="animate-spin text-trust-blue" />
+              <span>Loading campaigns...</span>
+            </div>
+          ) : myCampaigns.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-100">
               No campaign profiles created. Launch a campaign proposal above to see them in this ledger.
             </div>
