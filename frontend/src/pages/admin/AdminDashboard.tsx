@@ -262,12 +262,17 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Reject and delete milestone proof
+  // Reject milestone proof
   const handleRejectMilestone = async (milestoneId: string) => {
-    if (!window.confirm('Are you sure you want to reject and delete this milestone proof claim?')) return;
+    const reason = window.prompt(
+      'Enter the reason for rejecting this milestone proof:',
+      'Compliance document details did not satisfy audit requirements.'
+    );
+    if (reason === null) return; // User cancelled prompt
+
     try {
-      await axiosInstance.delete(`/proofs/${milestoneId}`);
-      alert('Milestone proof claim rejected and deleted.');
+      await axiosInstance.put(`/proofs/${milestoneId}/reject`, { reason });
+      alert('Milestone proof claim rejected successfully.');
       setPendingProofs(prev => prev.filter(p => p._id !== milestoneId));
       setSelectedProofId('');
     } catch (err: any) {

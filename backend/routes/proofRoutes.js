@@ -7,6 +7,8 @@ const {
   updateProof,
   deleteProof,
   approveProof,
+  rejectProof,
+  getNgoProofs,
 } = require('../controllers/proofController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 const upload = require('../middleware/multerMiddleware');
@@ -22,12 +24,16 @@ router.post('/', verifyToken, upload.single('file'), checkRole(['NGO']), createP
 // Private route: Fetch all proofs across all campaigns (Admin only)
 router.get('/', verifyToken, checkRole(['Admin']), getAllProofs);
 
+// Private route: Fetch all proofs submitted by the logged-in NGO (NGO only)
+router.get('/ngo', verifyToken, checkRole(['NGO']), getNgoProofs);
+
 // Public route: Fetch all proofs submitted for a specific campaign ID
 router.get('/campaign/:campaignId', getCampaignProofs);
 
 // CRITICAL ROUTE PRIORITY:
 // Place specific approval routes before generic resource IDs in case they are added later.
 router.put('/:id/approve', verifyToken, checkRole(['Admin']), approveProof);
+router.put('/:id/reject', verifyToken, checkRole(['Admin']), rejectProof);
 
 // Private route: Update and Delete proof document (Only NGO owner or Admin)
 router.put('/:id', verifyToken, upload.single('file'), checkRole(['NGO', 'Admin']), updateProof);

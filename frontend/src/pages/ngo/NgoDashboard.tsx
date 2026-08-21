@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
 import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../utils/axiosInstance';
@@ -41,12 +41,28 @@ export const NgoDashboard: React.FC = () => {
     }
   };
 
+  const [ngoProofs, setNgoProofs] = useState<any[]>([]);
+  const [isRejectedPopupOpen, setIsRejectedPopupOpen] = useState(false);
+
+  const fetchProofsData = async () => {
+    try {
+      const response = await axiosInstance.get('/proofs/ngo');
+      if (response.data && response.data.success) {
+        setNgoProofs(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch NGO proofs:', err);
+    }
+  };
+
   useEffect(() => {
     fetchCampaignsData();
+    fetchProofsData();
   }, [user]);
 
   // Filter campaigns created by this NGO
   const myCampaigns = fetchedCampaigns.filter(c => c.ngoId === user?.id);
+  const rejectedProofs = ngoProofs.filter((p: any) => p.isRejected);
 
   // Form states: Add Project
   const [projName, setProjName] = useState('');
@@ -201,6 +217,7 @@ export const NgoDashboard: React.FC = () => {
           proofFileName
         );
         await fetchCampaignsData();
+        await fetchProofsData();
 
         setProofSubmittedSuccess(true);
         setSelectedCampaignId('');
@@ -366,9 +383,20 @@ export const NgoDashboard: React.FC = () => {
 
           {/* Quick Metrics */}
           <div className="flex gap-4">
-            <div className="px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-center shrink-0">
+            <div className="px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-center shrink-0 flex flex-col items-center justify-center relative">
               <span className="block text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">My Projects</span>
-              <span className="font-heading font-extrabold text-lg text-slate-800">{myCampaigns.length}</span>
+              <div className="flex items-center gap-2 justify-center">
+                {rejectedProofs.length > 0 && (
+                  <button
+                    onClick={() => setIsRejectedPopupOpen(true)}
+                    className="text-red-500 hover:text-red-600 transition-colors animate-pulse cursor-pointer flex items-center justify-center"
+                    title="Click to view rejected milestone proofs details"
+                  >
+                    <AlertTriangle size={15} />
+                  </button>
+                )}
+                <span className="font-heading font-extrabold text-lg text-slate-800">{myCampaigns.length}</span>
+              </div>
             </div>
             <div className="px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-center shrink-0">
               <span className="block text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Audit Status</span>
@@ -771,6 +799,81 @@ export const NgoDashboard: React.FC = () => {
         </div>
 
       </div>
+
+      {/* REJECTED PROOFS POPUP MODAL */}
+      <AnimatePresence>
+        {isRejectedPopupOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsRejectedPopupOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Container */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 md:p-8 max-w-md w-full relative z-10 flex flex-col gap-6"
+            >
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 text-red-500 flex items-center justify-center">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-extrabold text-base text-slate-900">Rejected Milestone Proofs</h3>
+                  <p className="text-[10px] text-slate-400">Administrators rejected the following fund release requests.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 overflow-y-auto max-h-[300px] pr-1">
+                {ngoProofs.filter((p: any) => p.isRejected).map((p: any) => (
+                  <div key={p._id} className="p-4 rounded-2xl border border-red-100 bg-red-50/20 flex flex-col gap-2.5">
+                    <div className="flex justify-between items-start">
+                      <div className="min-w-0 flex-grow">
+                        <h4 className="font-heading font-bold text-xs text-slate-900 truncate">{p.campaignId?.title || 'My Campaign'}</h4>
+                        <span className="text-[9px] uppercase font-bold text-red-600 tracking-wider mt-0.5 block">{p.milestonePhase}</span>
+                      </div>
+                      <span className="font-heading font-extrabold text-xs text-slate-800 shrink-0 ml-2">${p.amountRequested?.toLocaleString() || '0'}</span>
+                    </div>
+
+                    <div className="text-xs bg-white border border-red-50/50 p-3 rounded-xl text-slate-600 leading-relaxed">
+                      <span className="block text-[8px] font-bold text-red-500 mb-1 uppercase tracking-wider">Rejection Reason</span>
+                      {p.rejectionReason}
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        try {
+                          await axiosInstance.delete(`/proofs/${p._id}`);
+                          setNgoProofs(prev => prev.filter(proof => proof._id !== p._id));
+                          alert('Rejection acknowledged. You can now re-submit your proof claim.');
+                        } catch (err: any) {
+                          alert(err.response?.data?.message || 'Failed to acknowledge rejection');
+                        }
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-heading text-[10px] font-bold uppercase tracking-wider transition-colors duration-200 cursor-pointer shadow-sm text-center"
+                    >
+                      Acknowledge & Clear Claim
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setIsRejectedPopupOpen(false)}
+                className="w-full py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-heading text-xs font-bold transition-colors duration-200 cursor-pointer text-center"
+              >
+                Close Viewer
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

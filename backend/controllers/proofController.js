@@ -288,3 +288,67 @@ exports.approveProof = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Reject a proof document status (Admin only)
+ * @route   PUT /api/proofs/:id/reject
+ * @access  Private (Admin only)
+ */
+exports.rejectProof = async (req, res) => {
+  const { reason } = req.body;
+  try {
+    const proof = await Proof.findById(req.params.id);
+    if (!proof) {
+      return res.status(404).json({
+        success: false,
+        message: 'Proof document record not found',
+      });
+    }
+
+    proof.isRejected = true;
+    proof.rejectionReason = reason || 'Compliance document details did not satisfy audit requirements.';
+    await proof.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Proof document rejected successfully',
+      data: proof,
+    });
+  } catch (error) {
+    console.error('Reject Proof Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error occurred during rejection',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get all proofs submitted by the logged-in NGO
+ * @route   GET /api/proofs/ngo
+ * @access  Private (NGO only)
+ */
+exports.getNgoProofs = async (req, res) => {
+  try {
+    const proofs = await Proof.find({ ngoId: req.user._id })
+      .populate({
+        path: 'campaignId',
+        select: 'title',
+      })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: proofs.length,
+      data: proofs,
+    });
+  } catch (error) {
+    console.error('Get NGO Proofs Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error occurred while fetching NGO proofs',
+      error: error.message,
+    });
+  }
+};
