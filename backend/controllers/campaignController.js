@@ -263,7 +263,7 @@ const { uploadFileToIPFS } = require('../services/ipfsService');
  */
 exports.createCampaign = async (req, res) => {
   try {
-    const { title, description, targetAmount } = req.body;
+    const { title, description, targetAmount, category } = req.body;
 
     // 1. Validation check before uploading to IPFS
     if (!title || !description || !targetAmount) {
@@ -290,7 +290,8 @@ exports.createCampaign = async (req, res) => {
       targetAmount,
       coverImageIPFSHash,
       ngoId: req.user.id,
-      status: req.user.isVerified ? 'Active' : 'Pending'
+      status: req.user.isVerified ? 'Active' : 'Pending',
+      category: category || 'Education'
     });
 
     const savedCampaign = await newCampaign.save();

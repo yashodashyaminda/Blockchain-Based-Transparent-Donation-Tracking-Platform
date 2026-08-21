@@ -41,6 +41,11 @@ const CampaignSchema = new mongoose.Schema(
       required: [true, 'Please provide an IPFS CID/hash representing the cover media'],
       trim: true,
     },
+    category: {
+      type: String,
+      enum: ['Education', 'Health', 'Disaster Relief'],
+      default: 'Education',
+    },
   },
   {
     timestamps: true, // Auto-adds createdAt and updatedAt fields
