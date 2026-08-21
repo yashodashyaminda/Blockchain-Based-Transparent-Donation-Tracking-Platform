@@ -4,13 +4,13 @@ import { useWeb3 } from '../../context/Web3Context';
 import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../utils/axiosInstance';
 import type { Campaign } from '../../context/Web3Context';
-import { ShieldCheck, Users, Wallet, BarChart3, Edit3, Trash2, CheckCircle2, FileSearch, ArrowRight, ShieldAlert, Plus, AlertCircle, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Users, Wallet, BarChart3, Edit3, Trash2, CheckCircle2, FileSearch, ArrowRight, ShieldAlert, Plus, AlertCircle, RefreshCw, Building, Phone, Mail, FileText } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const { verifyNGO, validateMilestoneProof } = useWeb3();
   const { user } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'crud' | 'metrics'>('approvals');
-  
+
   // Real Admin State Lists (fetched from backend)
   const [pendingNgos, setPendingNgos] = useState<any[]>([]);
   const [pendingProofs, setPendingProofs] = useState<any[]>([]);
@@ -19,7 +19,7 @@ export const AdminDashboard: React.FC = () => {
 
   // NGO Review states
   const [selectedNgoId, setSelectedNgoId] = useState<string>('');
-  
+
   // Milestone release states
   const [verifyingMilestoneId, setVerifyingMilestoneId] = useState<string>('');
   const [verifyingCampaignId, setVerifyingCampaignId] = useState<string>('');
@@ -32,7 +32,7 @@ export const AdminDashboard: React.FC = () => {
   const [newProjDesc, setNewProjDesc] = useState('');
   const [newProjTarget, setNewProjTarget] = useState('');
   const [newProjCat, setNewProjCat] = useState<Campaign['category']>('Education');
-  
+
   // Editing Campaign states
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -179,7 +179,7 @@ export const AdminDashboard: React.FC = () => {
         await axiosInstance.put(`/auth/reject-ngo/${id}`);
         alert('NGO registration was rejected.');
       }
-      
+
       // Remove from list
       setPendingNgos(prev => prev.filter(n => n.id !== id));
       setSelectedNgoId('');
@@ -209,7 +209,7 @@ export const AdminDashboard: React.FC = () => {
     setVerifyingCampaignId(campaignId);
     setVerifyingMilestoneId(milestoneId);
     setIsContractExecuting(true);
-    
+
     try {
       // 1. Backend PUT call to approve/verify the proof
       await axiosInstance.put(`/proofs/${milestoneId}/approve`);
@@ -245,7 +245,7 @@ export const AdminDashboard: React.FC = () => {
       formData.append('description', newProjDesc);
       formData.append('targetAmount', newProjTarget);
       formData.append('category', newProjCat);
-      
+
       // Add dummy file object to pass multer check
       const coverBlob = new Blob([''], { type: 'image/png' });
       formData.append('file', coverBlob, 'dummy_cover.png');
@@ -346,7 +346,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col gap-8 relative z-10">
-        
+
         {/* Header Console */}
         <div className="cinematic-glass rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -372,25 +372,22 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
             <button
               onClick={() => setActiveSubTab('approvals')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                activeSubTab === 'approvals' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${activeSubTab === 'approvals' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
             >
               Audits & Approvals
             </button>
             <button
               onClick={() => setActiveSubTab('crud')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                activeSubTab === 'crud' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${activeSubTab === 'crud' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
             >
               Campaign Manager
             </button>
             <button
               onClick={() => setActiveSubTab('metrics')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                activeSubTab === 'metrics' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${activeSubTab === 'metrics' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
             >
               Revenue Metrics
             </button>
@@ -400,7 +397,7 @@ export const AdminDashboard: React.FC = () => {
         {/* WORKSPACE SWITCHER AREA */}
         <div className="min-h-[480px]">
           <AnimatePresence mode="wait">
-            
+
             {/* SUB TAB 1: AUDITS & APPROVALS (Split desks) */}
             {activeSubTab === 'approvals' && (
               <motion.div
@@ -435,11 +432,10 @@ export const AdminDashboard: React.FC = () => {
                           <button
                             key={n.id}
                             onClick={() => setSelectedNgoId(n.id)}
-                            className={`w-full text-left p-3 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${
-                              selectedNgo?.id === n.id
+                            className={`w-full text-left p-3 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${selectedNgo?.id === n.id
                                 ? 'bg-purple-50/50 border-purple-200 text-purple-600 font-bold'
                                 : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
-                            }`}
+                              }`}
                           >
                             <span className="block truncate">{n.name}</span>
                           </button>
@@ -450,52 +446,59 @@ export const AdminDashboard: React.FC = () => {
                       {selectedNgo && (
                         <div className="sm:col-span-7 flex flex-col gap-4">
                           <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Audit Document Viewer</span>
-                          
-                          {/* Registration Document Preview Container */}
-                          <div className="relative aspect-[4/3] w-full border border-slate-200 rounded-2xl overflow-hidden bg-slate-100 flex flex-col items-center justify-center shadow-inner group">
-                            {selectedNgo.documentIpfsCID ? (
-                              <a
-                                href={`https://gateway.pinata.cloud/ipfs/${selectedNgo.documentIpfsCID}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="w-full h-full block"
-                              >
-                                <img 
-                                  src={`https://gateway.pinata.cloud/ipfs/${selectedNgo.documentIpfsCID}`} 
-                                  alt="NGO Registration PDF" 
-                                  className="w-full h-full object-cover opacity-85 group-hover:scale-[1.02] transition-transform duration-300"
-                                  onError={(e) => {
-                                    e.currentTarget.src = "/assets/images/2.png";
-                                  }}
-                                />
-                                <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center group-hover:bg-slate-900/20 transition-all duration-300">
-                                  <span className="px-3 py-1.5 rounded-lg bg-slate-900/75 text-white font-mono text-[9px] uppercase tracking-wider font-bold shadow-md">
-                                    CLICK TO OPEN DOCUMENT
-                                  </span>
-                                </div>
-                              </a>
-                            ) : (
-                              <div className="flex flex-col items-center gap-1.5 p-4 text-slate-400">
-                                <AlertCircle size={20} />
-                                <span className="text-[10px] font-bold">No Document Attached</span>
+
+
+
+                          {/* NGO Registration Fields Grid */}
+                          <div className="grid grid-cols-2 gap-4 text-left my-2">
+                            {/* Organization Name */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Organization Name</span>
+                              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
+                                <Building size={12} className="text-slate-400 shrink-0" />
+                                <span className="truncate font-semibold">{selectedNgo.name}</span>
                               </div>
-                            )}
+                            </div>
+
+                            {/* Registration Number */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Registration Number</span>
+                              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
+                                <FileText size={12} className="text-slate-400 shrink-0" />
+                                <span className="truncate font-semibold">{selectedNgo.registrationNumber}</span>
+                              </div>
+                            </div>
+
+                            {/* Contact Info / Phone */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Contact Info / Phone</span>
+                              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
+                                <Phone size={12} className="text-slate-400 shrink-0" />
+                                <span className="truncate font-semibold">{selectedNgo.contactInfo || 'N/A'}</span>
+                              </div>
+                            </div>
+
+                            {/* Official NGO Email */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Official NGO Email</span>
+                              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
+                                <Mail size={12} className="text-slate-400 shrink-0" />
+                                <span className="truncate font-semibold">{selectedNgo.email}</span>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5 text-xs">
-                            <span className="font-bold text-slate-800">{selectedNgo.name}</span>
-                            <span className="text-[10px] text-slate-500">Reg ID: {selectedNgo.registrationNumber}</span>
-                            <span className="text-[9px] text-slate-400 font-mono select-all truncate mt-0.5">Wallet: {selectedNgo.wallet}</span>
+                            <span className="text-[9px] text-slate-400 font-mono select-all truncate">Wallet: {selectedNgo.wallet || 'No wallet bound'}</span>
 
                             <a
                               href={selectedNgo.documentIpfsCID ? `https://gateway.pinata.cloud/ipfs/${selectedNgo.documentIpfsCID}` : undefined}
                               target="_blank"
                               rel="noreferrer"
-                              className={`mt-2 py-2 px-3 rounded-xl text-center text-[10px] font-bold border transition-all duration-200 ${
-                                selectedNgo.documentIpfsCID
-                                  ? 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100'
+                              className={`mt-2 py-2 px-3 rounded-xl text-center text-[10px] font-bold border transition-all duration-200 ${selectedNgo.documentIpfsCID
+                                  ? 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100 cursor-pointer'
                                   : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed pointer-events-none'
-                              }`}
+                                }`}
                             >
                               {selectedNgo.documentIpfsCID ? 'View NGO Registration Document' : 'No Document Attached'}
                             </a>
@@ -540,7 +543,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 overflow-y-auto max-h-[360px]">
                       {pendingMilestoneReleases.map(({ campaign, milestone }) => {
                         const isExecutingThis = verifyingMilestoneId === milestone.id && verifyingCampaignId === campaign.id;
-                        
+
                         return (
                           <div key={milestone.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col gap-4">
                             <div className="flex justify-between items-start gap-4">
@@ -555,7 +558,7 @@ export const AdminDashboard: React.FC = () => {
                             <div className="text-xs bg-white border border-slate-100 p-3.5 rounded-xl leading-relaxed text-slate-500">
                               <span className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">NGO Evidence Report</span>
                               {milestone.proofText}
-                              
+
                               {milestone.proofDoc && (
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
                                   <span className="font-bold text-slate-700">Receipt: {milestone.proofDoc}</span>

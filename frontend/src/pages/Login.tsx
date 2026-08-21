@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../utils/axiosInstance';
-import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Lock, Mail, ArrowRight, UserCheck } from 'lucide-react';
 
 interface LoginProps {
   setActivePage: (page: string) => void;
@@ -136,18 +136,6 @@ export const Login: React.FC<LoginProps> = ({ setActivePage }) => {
             </div>
           </div>
 
-          {/* Demo account hints badge */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-[9px] text-slate-500 space-y-0.5">
-            <div className="flex items-center gap-1 font-bold text-slate-700">
-              <ShieldCheck size={10} className="text-trust-blue animate-pulse" />
-              <span>Demo Quick Login Credentials:</span>
-            </div>
-            <div>
-              <span className="font-semibold text-slate-700">NGO:</span> info@globalcare.org |{' '}
-              <span className="font-semibold text-slate-700">Donor:</span> sarah@donor.org
-            </div>
-          </div>
-
           {/* Submit Button */}
           <button
             type="submit"
@@ -158,7 +146,7 @@ export const Login: React.FC<LoginProps> = ({ setActivePage }) => {
               <span>Authenticating Account...</span>
             ) : (
               <>
-                <span>Sign In to Dashboard</span>
+                <span>Sign In</span>
                 <ArrowRight size={14} />
               </>
             )}

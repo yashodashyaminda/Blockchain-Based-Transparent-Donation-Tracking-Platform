@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +36,21 @@ export const NgoDashboard: React.FC = () => {
   // Resubmit state for rejected verification
   const [resubmitFile, setResubmitFile] = useState<File | null>(null);
   const [isResubmitting, setIsResubmitting] = useState(false);
+
+  // Sync profile details on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axiosInstance.get('/auth/me');
+        if (res.data && res.data.success) {
+          login(localStorage.getItem('token') || '', res.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to sync profile status:', err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // Selected Campaign milestones lookup helper
   const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
