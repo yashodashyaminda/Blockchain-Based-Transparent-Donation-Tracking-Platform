@@ -108,17 +108,15 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 {isWalletConnected && (
                   <>
                     {' • '}
-                    Wallet Address: <span className="font-mono text-slate-800 font-bold bg-white px-2 py-0.5 rounded border border-slate-200" title={walletAddress}>
+                    Wallet: <span className="font-mono text-slate-800 font-bold bg-white px-1.5 py-0.5 rounded border border-slate-200" title={walletAddress}>
                       {formatTruncatedAddress(walletAddress)}
                     </span>
-                    {' • '}
                     <button
                       onClick={disconnectWallet}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                      className="ml-2 font-bold text-red-500 hover:text-red-700 hover:underline text-[11px] cursor-pointer inline-flex items-center gap-0.5"
                       title="Disconnect MetaMask Wallet"
                     >
-                      <LogOut size={11} />
-                      <span>Disconnect Wallet</span>
+                      (Disconnect)
                     </button>
                   </>
                 )}
@@ -127,11 +125,11 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
           </div>
 
           {/* Tab buttons */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
               <button
                 onClick={() => setActiveTab('browse')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'browse' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -139,7 +137,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
               </button>
               <button
                 onClick={() => setActiveTab('map')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'map' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -147,7 +145,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
               </button>
               <button
                 onClick={() => setActiveTab('ledger')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'ledger' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -467,31 +465,12 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                     <h3 className="font-heading font-extrabold text-sm text-slate-900">Immutable Ledger Records</h3>
                     <p className="text-[10px] text-slate-400 mt-1">Cryptographic transaction logs linked to connected wallet address.</p>
                   </div>
-                  {isWalletConnected && (
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-400 block">Connected Wallet</span>
-                      <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                        {walletAddress}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
-                {!isWalletConnected ? (
-                  <div className="p-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-3">
-                    <Wallet size={32} className="text-slate-300" />
-                    <span className="font-medium text-slate-600">Please connect your MetaMask wallet to view your transaction ledger history.</span>
-                    <button
-                      onClick={() => connectWallet()}
-                      className="px-4 py-2 rounded-xl bg-trust-blue text-white font-bold text-xs shadow-sm hover:bg-blue-600 transition-all cursor-pointer"
-                    >
-                      Connect Wallet
-                    </button>
-                  </div>
-                ) : myTransactions.length === 0 ? (
+                {myTransactions.length === 0 ? (
                   <div className="p-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
                     <FileText size={24} className="text-slate-300" />
-                    <span>No donation records found linked to wallet ({formatTruncatedAddress(walletAddress)}). Complete a campaign contribution to generate ledger records.</span>
+                    <span>No donation records found. Complete a campaign contribution to generate ledger records.</span>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">

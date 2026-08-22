@@ -22,8 +22,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
       refreshBalance(walletAddress);
     }
     setErrorMessage(null);
-    setDonationSuccess(false);
-  }, [selectedCampaign, isWalletConnected, walletAddress, refreshBalance]);
+  }, [selectedCampaign?.id, isWalletConnected, walletAddress, refreshBalance]);
 
   const numericAmount = parseFloat(donationAmount) || 0;
   const numericGas = parseFloat(estimatedGasFee) || 0.00021;
@@ -39,7 +38,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
   const handleDonationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    
+
     if (!selectedCampaign || numericAmount <= 0) return;
 
     if (!isWalletConnected) {
@@ -53,16 +52,16 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
     }
 
     setIsDonating(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     const result = await donateToCampaign(selectedCampaign.id, numericAmount);
     setIsDonating(false);
-    
+
     if (result.success) {
       setDonationSuccess(true);
-      setTimeout(() => {
-        setDonationSuccess(false);
-        onClose();
-        setDonationAmount('0.01');
-      }, 2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setDonationSuccess(false);
+      onClose();
+      setDonationAmount('0.01');
     } else {
       setErrorMessage(result.error || 'Transaction was rejected or failed in MetaMask.');
     }
@@ -105,7 +104,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
             </div>
 
             <form onSubmit={handleDonationSubmit} className="flex flex-col gap-5">
-              
+
               {/* Donation Amount Input in ETH */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Donation Amount (ETH)</label>
@@ -136,7 +135,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                       {formatAddress(walletAddress)}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500 font-medium">Available Balance</span>
                     <span className="font-bold text-slate-900">{currentBalance.toFixed(4)} ETH</span>
@@ -185,13 +184,12 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                 <button
                   type="submit"
                   disabled={isDonating || donationSuccess || !hasEnoughBalance || numericAmount <= 0}
-                  className={`w-full py-4 rounded-xl font-heading text-xs font-bold text-white shadow-md transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
-                    !hasEnoughBalance
+                  className={`w-full py-4 rounded-xl font-heading text-xs font-bold text-white shadow-md transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${!hasEnoughBalance
                       ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-300 shadow-none'
                       : donationSuccess
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-900 hover:bg-trust-blue shadow-md hover:shadow-lg glow-blue'
-                  }`}
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900 hover:bg-trust-blue shadow-md hover:shadow-lg glow-blue'
+                    }`}
                 >
                   {isDonating ? (
                     <>
@@ -201,7 +199,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                   ) : donationSuccess ? (
                     <>
                       <CheckCircle size={14} className="text-emerald-300" />
-                      <span>Transaction Completed & Logged</span>
+                      <span>Completed Transaction</span>
                     </>
                   ) : (
                     <>
