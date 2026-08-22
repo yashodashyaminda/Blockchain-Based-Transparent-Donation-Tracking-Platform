@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
 import { useAuth } from '../../context/AuthContext';
 import type { Campaign } from '../../context/Web3Context';
-import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw, ArrowRight } from 'lucide-react';
+import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw, ArrowRight, LogOut } from 'lucide-react';
 import { DonationModal } from '../../components/DonationModal';
 
 interface DonorDashboardProps {
@@ -12,14 +12,16 @@ interface DonorDashboardProps {
 }
 
 export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampaignId, setPreSelectedCampaignId }) => {
-  const { campaigns, isWalletConnected, walletAddress, transactions, bindWalletToProfile, refreshCampaigns } = useWeb3();
+  const { campaigns, isWalletConnected, walletAddress, walletBalance, connectWallet, disconnectWallet, transactions, refreshCampaigns } = useWeb3();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'map' | 'ledger'>('browse');
-  const [loadingCampaigns, setLoadingCampaigns] = useState<boolean>(true);
+  const [loadingCampaigns, setLoadingCampaigns] = useState<boolean>(() => campaigns.length === 0);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
-      setLoadingCampaigns(true);
+      if (campaigns.length === 0) {
+        setLoadingCampaigns(true);
+      }
       try {
         await refreshCampaigns();
       } catch (err) {
@@ -29,7 +31,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       }
     };
     fetchCampaigns();
-  }, [refreshCampaigns]);
+  }, [refreshCampaigns, campaigns.length]);
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,8 +40,15 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
   // Fund Map active project selection
-  const [mapCampaignId, setMapCampaignId] = useState<string>('proj-1');
+  const [mapCampaignId, setMapCampaignId] = useState<string>('');
   const [activeMilestoneNode, setActiveMilestoneNode] = useState<any>(null);
+
+  // Set default map campaign ID once campaigns are loaded
+  useEffect(() => {
+    if (campaigns.length > 0 && !mapCampaignId) {
+      setMapCampaignId(campaigns[0].id);
+    }
+  }, [campaigns, mapCampaignId]);
 
   // Load preselected campaign from landing page
   useEffect(() => {
@@ -51,7 +60,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
         setPreSelectedCampaignId(null);
       }
     }
-  }, [preSelectedCampaignId, campaigns]);
+  }, [preSelectedCampaignId, campaigns, setPreSelectedCampaignId]);
 
   // Filter campaigns
   const filteredCampaigns = campaigns.filter(c =>
@@ -60,10 +69,19 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     c.ngoName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filter transactions for this wallet
-  const myTransactions = transactions.filter(t => t.donorAddress === walletAddress);
+  // Filter transactions for the connected wallet address strictly
+  const myTransactions = transactions.filter(t => 
+    isWalletConnected && 
+    walletAddress && 
+    t.donorAddress.toLowerCase() === walletAddress.toLowerCase()
+  );
 
   const selectedMapCampaign = campaigns.find(c => c.id === mapCampaignId) || campaigns[0];
+
+  const formatTruncatedAddress = (addr: string) => {
+    if (!addr) return 'Not Connected';
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pt-28 pb-16 px-6 md:px-12 relative">
@@ -86,41 +104,60 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 Donor Tracking Room
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Account: <span className="font-semibold text-slate-800">{user?.name || 'Sarah Connor'}</span> ({user?.email || 'donor@email.com'}) • Wallet Address: <span className="font-mono text-slate-600 font-semibold">{walletAddress || user?.walletAddress || 'Unbound'}</span>
+                Account: <span className="font-semibold text-slate-800">{user?.name || 'Donor Profile'}</span> ({user?.email || 'donor@platform.org'})
+                {isWalletConnected && (
+                  <>
+                    {' • '}
+                    Wallet Address: <span className="font-mono text-slate-800 font-bold bg-white px-2 py-0.5 rounded border border-slate-200" title={walletAddress}>
+                      {formatTruncatedAddress(walletAddress)}
+                    </span>
+                    {' • '}
+                    <button
+                      onClick={disconnectWallet}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                      title="Disconnect MetaMask Wallet"
+                    >
+                      <LogOut size={11} />
+                      <span>Disconnect Wallet</span>
+                    </button>
+                  </>
+                )}
               </p>
             </div>
           </div>
 
           {/* Tab buttons */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
-            <button
-              onClick={() => setActiveTab('browse')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                activeTab === 'browse' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Browse Campaigns
-            </button>
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                activeTab === 'map' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Visual Fund Tracker
-            </button>
-            <button
-              onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                activeTab === 'ledger' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              My Ledger
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
+              <button
+                onClick={() => setActiveTab('browse')}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'browse' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Browse Campaigns
+              </button>
+              <button
+                onClick={() => setActiveTab('map')}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'map' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Visual Fund Tracker
+              </button>
+              <button
+                onClick={() => setActiveTab('ledger')}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'ledger' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                My Ledger ({myTransactions.length})
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* POST-LOGIN WEB3 WALLET BINDING BANNER */}
+        {/* WEB3 WALLET BINDING BANNER (Hidden automatically when wallet is connected) */}
         {!isWalletConnected && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -133,20 +170,19 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-heading font-extrabold text-lg text-white">Connect Web3 Wallet to Enable On-Chain Donations</h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-trust-blue/20 text-blue-300 border border-blue-400/30">Step 2 of 2</span>
+                  <h3 className="font-heading font-extrabold text-lg text-white">Connect MetaMask Wallet for Transparent ETH Donations</h3>
                 </div>
                 <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                  You are authenticated via Web2. Connect your Web3 wallet (MetaMask / WalletConnect) to bind your wallet address to your donor profile and enable smart contract escrow deposits.
+                  Connect your Web3 wallet (MetaMask) to view your ETH balance, broadcast smart contract donations on-chain, and record your verified ledger history.
                 </p>
               </div>
             </div>
             <button
-              onClick={() => bindWalletToProfile()}
+              onClick={() => connectWallet()}
               className="px-6 py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blue-hover text-white font-heading text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-lg glow-blue shrink-0 cursor-pointer flex items-center justify-center gap-2"
             >
               <Wallet size={16} />
-              <span>Connect & Bind Wallet</span>
+              <span>Connect MetaMask Wallet</span>
             </button>
           </motion.div>
         )}
@@ -179,10 +215,10 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
                 {/* Campaigns Grid */}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {loadingCampaigns ? (
+                  {loadingCampaigns && campaigns.length === 0 ? (
                     <div className="col-span-3 py-16 flex flex-col items-center justify-center gap-3 text-slate-400">
                       <RefreshCw className="animate-spin text-trust-blue" size={32} />
-                      <span className="text-sm font-medium">Loading campaigns...</span>
+                      <span className="text-sm font-medium">Loading campaigns from system...</span>
                     </div>
                   ) : filteredCampaigns.length === 0 ? (
                     <div className="col-span-3 py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
@@ -225,14 +261,14 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             {/* Bottom metrics + action */}
                             <div className="flex items-center gap-3 mt-auto pt-2 border-t border-slate-100">
                               <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-bold text-slate-900">
-                                  ${c.raised.toLocaleString()}
+                                <span className="text-xs font-extrabold text-slate-900">
+                                  {c.raised} ETH
                                 </span>
-                                <span className="text-[9px] text-slate-400">Target: ${c.target.toLocaleString()}</span>
+                                <span className="text-[9px] text-slate-400">Target: {c.target} ETH</span>
                               </div>
                               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div
-                                  className="h-full bg-blue-600 rounded-full"
+                                  className="h-full bg-blue-600 rounded-full transition-all duration-500"
                                   style={{ width: `${percent}%` }}
                                 />
                               </div>
@@ -240,7 +276,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                                 onClick={() => setSelectedCampaign(c)}
                                 className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold text-white bg-slate-900 hover:bg-blue-600 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer whitespace-nowrap"
                               >
-                                <span>Support Project</span>
+                                <span>DONATE</span>
                                 <ArrowRight size={10} />
                               </button>
                             </div>
@@ -344,7 +380,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                               {m.title}
                             </span>
                             <span className="block text-[9px] font-semibold text-slate-400 mt-0.5">
-                              ${m.amount.toLocaleString()}
+                              {m.amount} ETH
                             </span>
                           </div>
                         </motion.div>
@@ -384,7 +420,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                           </div>
 
                           <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
-                            <span className="font-heading font-extrabold text-base text-slate-800">${activeMilestoneNode.amount.toLocaleString()}</span>
+                            <span className="font-heading font-extrabold text-base text-slate-800">{activeMilestoneNode.amount} ETH</span>
                             {activeMilestoneNode.proofDoc && (
                               <a
                                 href="/assets/images/3.png"
@@ -426,15 +462,36 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 transition={{ duration: 0.25 }}
                 className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col"
               >
-                <div className="p-6 border-b border-slate-100">
-                  <h3 className="font-heading font-extrabold text-sm text-slate-900">Immutable Ledger Records</h3>
-                  <p className="text-[10px] text-slate-400 mt-1">Cryptographic hashes validating transactions on the decentralized ecosystem.</p>
+                <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-heading font-extrabold text-sm text-slate-900">Immutable Ledger Records</h3>
+                    <p className="text-[10px] text-slate-400 mt-1">Cryptographic transaction logs linked to connected wallet address.</p>
+                  </div>
+                  {isWalletConnected && (
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">Connected Wallet</span>
+                      <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                        {walletAddress}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {myTransactions.length === 0 ? (
+                {!isWalletConnected ? (
+                  <div className="p-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-3">
+                    <Wallet size={32} className="text-slate-300" />
+                    <span className="font-medium text-slate-600">Please connect your MetaMask wallet to view your transaction ledger history.</span>
+                    <button
+                      onClick={() => connectWallet()}
+                      className="px-4 py-2 rounded-xl bg-trust-blue text-white font-bold text-xs shadow-sm hover:bg-blue-600 transition-all cursor-pointer"
+                    >
+                      Connect Wallet
+                    </button>
+                  </div>
+                ) : myTransactions.length === 0 ? (
                   <div className="p-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
                     <FileText size={24} className="text-slate-300" />
-                    <span>No donation records found linked to this wallet. Complete a campaign donation to view.</span>
+                    <span>No donation records found linked to wallet ({formatTruncatedAddress(walletAddress)}). Complete a campaign contribution to generate ledger records.</span>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -443,8 +500,8 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                         <tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
                           <th className="px-6 py-4">Transaction Hash</th>
                           <th className="px-6 py-4">Date Stamp</th>
-                          <th className="px-6 py-4">Destination Project</th>
-                          <th className="px-6 py-4 text-right">Value (USD)</th>
+                          <th className="px-6 py-4">Destination Campaign</th>
+                          <th className="px-6 py-4 text-right">Value (ETH)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50 text-xs">
@@ -458,7 +515,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                               <span className="font-bold text-slate-800">{tx.campaignName}</span>
                               <span className="block text-[8px] text-slate-400 mt-0.5">ID: {tx.campaignId}</span>
                             </td>
-                            <td className="px-6 py-4 text-right font-heading font-extrabold text-slate-900">${tx.amount.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-right font-heading font-extrabold text-trust-blue">{tx.amount} ETH</td>
                           </tr>
                         ))}
                       </tbody>

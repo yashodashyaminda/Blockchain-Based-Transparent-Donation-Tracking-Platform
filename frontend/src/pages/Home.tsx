@@ -14,13 +14,12 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId }) => {
-  const { currentRole, isWalletConnected } = useWeb3();
+  const { currentRole, isWalletConnected, campaigns, refreshCampaigns } = useWeb3();
   const { user } = useAuth();
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => campaigns.length === 0);
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,24 +30,11 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
 
   useEffect(() => {
     const fetchCampaigns = async () => {
-      setIsLoading(true);
+      if (campaigns.length === 0) {
+        setIsLoading(true);
+      }
       try {
-        const response = await axiosInstance.get('/campaigns');
-        if (response.data && response.data.success) {
-          const mapped = response.data.data.map((c: any) => ({
-            id: c._id,
-            name: c.title,
-            category: c.category || 'Education',
-            description: c.description,
-            image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
-            target: c.targetAmount || 0,
-            raised: c.raisedAmount || 0,
-            ngoId: c.ngoId?._id || c.ngoId,
-            ngoName: c.ngoId?.name || 'Verified NGO',
-            milestones: c.milestones || [],
-          }));
-          setCampaigns(mapped);
-        }
+        await refreshCampaigns();
       } catch (err) {
         console.error('Failed to load campaigns in Home:', err);
       } finally {
@@ -56,7 +42,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       }
     };
     fetchCampaigns();
-  }, []);
+  }, [refreshCampaigns, campaigns.length]);
 
   // Form submission handler
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -305,7 +291,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
 
             {/* Carousel Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {isLoading ? (
+              {isLoading && campaigns.length === 0 ? (
                 <div className="col-span-3 py-16 flex flex-col items-center justify-center gap-3 text-slate-400">
                   <RefreshCw className="animate-spin text-blue-600" size={32} />
                   <span className="text-sm font-medium">Loading campaigns...</span>

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { ethers } from 'ethers';
 import axiosInstance from '../utils/axiosInstance';
 
 // Types
@@ -48,13 +49,15 @@ export interface Transaction {
 
 export type UserRole = 'guest' | 'donor' | 'ngo' | 'admin';
 
-interface Web3ContextType {
+export interface Web3ContextType {
   // Wallet
   isWalletConnected: boolean;
   walletAddress: string;
-  connectWallet: () => void;
+  walletBalance: string;
+  connectWallet: () => Promise<string | null>;
   disconnectWallet: () => void;
-  bindWalletToProfile: (customAddr?: string) => void;
+  bindWalletToProfile: (customAddr?: string) => Promise<string | null>;
+  refreshBalance: (addr?: string) => Promise<string>;
   
   // Auth/Roles (Web2.5)
   currentRole: UserRole;
@@ -78,7 +81,7 @@ interface Web3ContextType {
   addCampaign: (name: string, category: Campaign['category'], description: string, image: string, target: number) => void;
   deleteCampaign: (id: string) => void;
   editCampaign: (id: string, updated: Partial<Campaign>) => void;
-  donateToCampaign: (campaignId: string, amount: number) => Promise<boolean>;
+  donateToCampaign: (campaignId: string, amount: number) => Promise<{ success: boolean; hash?: string; error?: string }>;
   
   // Milestones & Proofs
   addMilestoneProof: (campaignId: string, milestoneId: string, proofText: string, proofDocName: string) => void;
@@ -121,25 +124,7 @@ const initialNGOs: NGO[] = [
 ];
 
 const initialCampaigns: Campaign[] = [];
-
-const initialTransactions: Transaction[] = [
-  {
-    hash: '0x32bafe091c78b27cf89eaef8325c9b1932ea489dcfb18ae72e2cf89daef389cb',
-    date: '2026-06-22 14:32:05',
-    amount: 1500,
-    donorAddress: '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a',
-    campaignId: 'proj-1',
-    campaignName: 'Pure Water Initiative'
-  },
-  {
-    hash: '0x7b23af89dcaebf412ea789acde1b63ef2b89adcfb28aefc08a9adbc8e7cfa12b',
-    date: '2026-06-23 09:15:42',
-    amount: 2000,
-    donorAddress: '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a',
-    campaignId: 'proj-1',
-    campaignName: 'Pure Water Initiative'
-  }
-];
+const initialTransactions: Transaction[] = [];
 
 export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Wallet state
@@ -148,6 +133,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [walletAddress, setWalletAddress] = useState<string>(() => {
     return localStorage.getItem('wallet_address') || '';
+  });
+  const [walletBalance, setWalletBalance] = useState<string>(() => {
+    return localStorage.getItem('wallet_balance') || '0';
   });
 
   // Auth states
@@ -176,7 +164,24 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : initialTransactions;
   });
 
-  const refreshCampaigns = React.useCallback(async () => {
+  const refreshBalance = useCallback(async (addr?: string): Promise<string> => {
+    const target = addr || walletAddress;
+    if (!target || typeof window === 'undefined' || !(window as any).ethereum) {
+      return '0';
+    }
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const balanceWei = await provider.getBalance(target);
+      const formatted = parseFloat(ethers.formatEther(balanceWei)).toFixed(4);
+      setWalletBalance(formatted);
+      return formatted;
+    } catch (err) {
+      console.error('Failed to fetch wallet balance:', err);
+      return walletBalance;
+    }
+  }, [walletAddress, walletBalance]);
+
+  const refreshCampaigns = useCallback(async () => {
     try {
       const response = await axiosInstance.get('/campaigns');
       if (response.data && response.data.success) {
@@ -201,70 +206,206 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     refreshCampaigns();
+  }, [refreshCampaigns]);
+
+  // Auto check connected account on load if already authorized
+  useEffect(() => {
+    const checkInitialConnection = async () => {
+      if (typeof window !== 'undefined' && (window as any).ethereum) {
+        try {
+          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const accounts = await provider.send('eth_accounts', []);
+          if (accounts && accounts.length > 0) {
+            const addr = accounts[0];
+            const balanceWei = await provider.getBalance(addr);
+            const formattedBal = parseFloat(ethers.formatEther(balanceWei)).toFixed(4);
+            setWalletAddress(addr);
+            setWalletBalance(formattedBal);
+            setIsWalletConnected(true);
+          }
+        } catch (e) {
+          console.error('Error checking initial MetaMask connection:', e);
+        }
+      }
+    };
+    checkInitialConnection();
+  }, []);
+
+  // Handle MetaMask events (accountsChanged, chainChanged)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      const ethereum = (window as any).ethereum;
+
+      const handleAccountsChanged = async (accounts: string[]) => {
+        if (accounts.length === 0) {
+          setIsWalletConnected(false);
+          setWalletAddress('');
+          setWalletBalance('0');
+        } else {
+          const newAddr = accounts[0];
+          setWalletAddress(newAddr);
+          setIsWalletConnected(true);
+          try {
+            const provider = new ethers.BrowserProvider(ethereum);
+            const bal = await provider.getBalance(newAddr);
+            setWalletBalance(parseFloat(ethers.formatEther(bal)).toFixed(4));
+          } catch (e) {
+            console.error('Error reading balance on account change:', e);
+          }
+        }
+      };
+
+      const handleChainChanged = () => {
+        window.location.reload();
+      };
+
+      ethereum.on('accountsChanged', handleAccountsChanged);
+      ethereum.on('chainChanged', handleChainChanged);
+
+      return () => {
+        if (ethereum.removeListener) {
+          ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          ethereum.removeListener('chainChanged', handleChainChanged);
+        }
+      };
+    }
   }, []);
 
   // Sync state with LocalStorage
   useEffect(() => {
     localStorage.setItem('wallet_connected', String(isWalletConnected));
     localStorage.setItem('wallet_address', walletAddress);
+    localStorage.setItem('wallet_balance', walletBalance);
     localStorage.setItem('user_role', currentRole);
     localStorage.setItem('active_ngo_id', activeNgoId || '');
     localStorage.setItem('donor_profile', donorProfile ? JSON.stringify(donorProfile) : '');
     localStorage.setItem('ngo_registry', JSON.stringify(ngos));
     localStorage.setItem('campaign_registry', JSON.stringify(campaigns));
     localStorage.setItem('transaction_registry', JSON.stringify(transactions));
-  }, [isWalletConnected, walletAddress, currentRole, activeNgoId, donorProfile, ngos, campaigns, transactions]);
+  }, [isWalletConnected, walletAddress, walletBalance, currentRole, activeNgoId, donorProfile, ngos, campaigns, transactions]);
+
+  // Web3 Connect Wallet via MetaMask (Forces account selection picker for different wallets)
+  const connectWallet = async (): Promise<string | null> => {
+    const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : undefined;
+
+    if (!ethereum) {
+      alert('MetaMask browser extension is not installed! Please install MetaMask extension in your browser to connect.');
+      return null;
+    }
+
+    try {
+      // Force MetaMask account selection modal so donor can pick different wallet
+      try {
+        await ethereum.request({
+          method: 'wallet_requestPermissions',
+          params: [{ eth_accounts: {} }]
+        });
+      } catch (permErr: any) {
+        // Fallback to eth_requestAccounts if requestPermissions is closed/cancelled
+      }
+
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      
+      if (accounts && accounts.length > 0) {
+        const addr = accounts[0];
+        let formattedBal = '0.0000';
+        try {
+          const provider = new ethers.BrowserProvider(ethereum);
+          const balanceWei = await provider.getBalance(addr);
+          formattedBal = parseFloat(ethers.formatEther(balanceWei)).toFixed(4);
+        } catch (balErr) {
+          console.warn('Balance fetch warning:', balErr);
+        }
+
+        setWalletAddress(addr);
+        setWalletBalance(formattedBal);
+        setIsWalletConnected(true);
+
+        if (currentRole === 'donor' && donorProfile) {
+          setDonorProfile({ ...donorProfile, wallet: addr });
+        } else if (currentRole === 'ngo' && activeNgoId) {
+          setNgos(prev =>
+            prev.map(n => (n.id === activeNgoId ? { ...n, wallet: addr } : n))
+          );
+        }
+
+        return addr;
+      }
+    } catch (err: any) {
+      console.error('User rejected or failed wallet connection:', err);
+      if (err?.code === -32002) {
+        alert('MetaMask is already processing a connection request! Please open your MetaMask browser extension popup to approve the pending connection.');
+      } else if (err?.code !== 4001) {
+        alert(`MetaMask connection error: ${err?.message || 'Connection failed'}`);
+      }
+    }
+    return null;
+  };
+
+  const bindWalletToProfile = async (customAddr?: string): Promise<string | null> => {
+    if (customAddr) {
+      setWalletAddress(customAddr);
+      setIsWalletConnected(true);
+      if (currentRole === 'donor' && donorProfile) {
+        setDonorProfile({ ...donorProfile, wallet: customAddr });
+      }
+      return customAddr;
+    }
+    return await connectWallet();
+  };
+
+  const disconnectWallet = () => {
+    setIsWalletConnected(false);
+    setWalletAddress('');
+    setWalletBalance('0');
+    localStorage.removeItem('wallet_connected');
+    localStorage.removeItem('wallet_address');
+    localStorage.removeItem('wallet_balance');
+
+    if (donorProfile) {
+      setDonorProfile({ ...donorProfile, wallet: '' });
+    }
+  };
 
   // Unified Web2 Login handler
   const loginUser = async (email: string, _password: string) => {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check if matching Admin credentials
+    // Clear previous wallet session cache on login
+    setIsWalletConnected(false);
+    setWalletAddress('');
+    setWalletBalance('0');
+    localStorage.removeItem('wallet_connected');
+    localStorage.removeItem('wallet_address');
+    localStorage.removeItem('wallet_balance');
+
     if (cleanEmail === 'admin@platform.org' || cleanEmail.includes('admin')) {
       setCurrentRole('admin');
       return { success: true, role: 'admin' as UserRole };
     }
 
-    // Check if matching registered NGO email
     const matchingNgo = ngos.find(n => n.email.toLowerCase() === cleanEmail);
     if (matchingNgo) {
       setCurrentRole('ngo');
       setActiveNgoId(matchingNgo.id);
-      if (matchingNgo.wallet) {
-        setIsWalletConnected(true);
-        setWalletAddress(matchingNgo.wallet);
-      } else {
-        setIsWalletConnected(false);
-        setWalletAddress('');
-      }
       return { success: true, role: 'ngo' as UserRole };
     }
 
-    // Fallback/Default Donor login simulation
     const donorName = cleanEmail.split('@')[0].replace('.', ' ');
     const formattedName = donorName.charAt(0).toUpperCase() + donorName.slice(1);
     
     const profile = {
       name: formattedName || 'Sarah Connor',
       email: cleanEmail,
-      wallet: donorProfile?.wallet || walletAddress || ''
+      wallet: ''
     };
 
     setCurrentRole('donor');
     setDonorProfile(profile);
-    
-    if (profile.wallet) {
-      setIsWalletConnected(true);
-      setWalletAddress(profile.wallet);
-    } else {
-      setIsWalletConnected(false);
-      setWalletAddress('');
-    }
 
     return { success: true, role: 'donor' as UserRole };
   };
 
-  // Web2 Donor Registration
   const registerDonorUser = (data: { name: string; email: string; password?: string }) => {
     const newProfile = {
       name: data.name,
@@ -275,9 +416,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentRole('donor');
     setIsWalletConnected(false);
     setWalletAddress('');
+    setWalletBalance('0');
   };
 
-  // Web2 NGO Registration (with Email and Password)
   const registerNgoUser = (data: { name: string; registrationNumber: string; contactInfo?: string; email: string; password?: string; documentName: string; documentUrl: string }) => {
     const newNGO: NGO = {
       id: `ngo-${Math.random().toString(36).substring(2, 9)}`,
@@ -288,7 +429,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       documentName: data.documentName || 'verification_document.pdf',
       documentUrl: data.documentUrl || '/assets/images/3.png',
       isVerified: false,
-      wallet: '', // Unbound initially
+      wallet: '',
     };
 
     setNgos(prev => [...prev, newNGO]);
@@ -296,36 +437,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveNgoId(newNGO.id);
     setIsWalletConnected(false);
     setWalletAddress('');
+    setWalletBalance('0');
   };
 
-  // Post-Login Web3 Wallet Connection & Profile Binding
-  const bindWalletToProfile = (customAddr?: string) => {
-    const boundAddress = customAddr || '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a';
-    setIsWalletConnected(true);
-    setWalletAddress(boundAddress);
-
-    if (currentRole === 'donor' && donorProfile) {
-      setDonorProfile({ ...donorProfile, wallet: boundAddress });
-    } else if (currentRole === 'ngo' && activeNgoId) {
-      setNgos(prev =>
-        prev.map(n => (n.id === activeNgoId ? { ...n, wallet: boundAddress } : n))
-      );
-    }
-  };
-
-  const connectWallet = () => {
-    bindWalletToProfile();
-  };
-
-  const disconnectWallet = () => {
-    setIsWalletConnected(false);
-    setWalletAddress('');
-    setCurrentRole('guest');
-    setActiveNgoId(null);
-    setDonorProfile(null);
-  };
-
-  // Backward compatible registerNGO handler
   const registerNGO = (name: string, email: string, regId: string, docName: string, docDataUrl: string) => {
     registerNgoUser({
       name,
@@ -408,38 +522,83 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  const donateToCampaign = async (campaignId: string, amount: number): Promise<boolean> => {
-    if (!isWalletConnected) return false;
-    
-    await new Promise(resolve => setTimeout(resolve, 1500));
+  const donateToCampaign = async (campaignId: string, amountEth: number): Promise<{ success: boolean; hash?: string; error?: string }> => {
+    if (!isWalletConnected || !walletAddress) {
+      return { success: false, error: 'Wallet is not connected' };
+    }
 
-    const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 19).replace('T', ' ');
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
+      return { success: false, error: 'MetaMask is not installed in your browser' };
+    }
 
-    const campaign = campaigns.find(c => c.id === campaignId);
-    if (!campaign) return false;
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
 
-    setCampaigns(prev => 
-      prev.map(c => {
-        if (c.id === campaignId) {
-          return { ...c, raised: c.raised + amount };
+      const campaign = campaigns.find(c => c.id === campaignId);
+      if (!campaign) return { success: false, error: 'Campaign not found' };
+
+      let recipientAddress = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
+      if (campaign.ngoId) {
+        const ngo = ngos.find(n => n.id === campaign.ngoId);
+        if (ngo && ngo.wallet && ethers.isAddress(ngo.wallet)) {
+          recipientAddress = ngo.wallet;
         }
-        return c;
-      })
-    );
+      }
 
-    const newTx: Transaction = {
-      hash: txHash,
-      date: dateStr,
-      amount,
-      donorAddress: walletAddress,
-      campaignId,
-      campaignName: campaign.name
-    };
+      const valueWei = ethers.parseEther(amountEth.toString());
 
-    setTransactions(prev => [newTx, ...prev]);
-    return true;
+      // Broadcast transaction via MetaMask
+      const tx = await signer.sendTransaction({
+        to: recipientAddress,
+        value: valueWei,
+      });
+
+      const receipt = await tx.wait();
+      const txHash = receipt?.hash || tx.hash;
+      const dateStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+      // Update frontend state
+      setCampaigns(prev => 
+        prev.map(c => {
+          if (c.id === campaignId) {
+            return { ...c, raised: c.raised + amountEth };
+          }
+          return c;
+        })
+      );
+
+      const newTx: Transaction = {
+        hash: txHash,
+        date: dateStr,
+        amount: amountEth,
+        donorAddress: walletAddress,
+        campaignId,
+        campaignName: campaign.name
+      };
+
+      setTransactions(prev => [newTx, ...prev]);
+
+      try {
+        await axiosInstance.post(`/campaigns/${campaignId}/donate`, {
+          donorAddress: walletAddress,
+          amount: amountEth,
+          transactionHash: txHash
+        });
+      } catch (backendErr) {
+        console.warn('Backend sync omitted/non-blocking:', backendErr);
+      }
+
+      await refreshBalance(walletAddress);
+
+      return { success: true, hash: txHash };
+    } catch (err: any) {
+      console.error('Donation transaction failed:', err);
+      return { 
+        success: false, 
+        error: err?.reason || err?.message || 'Transaction was cancelled or rejected in MetaMask' 
+      };
+    }
   };
 
   const addMilestoneProof = (campaignId: string, milestoneId: string, proofText: string, proofDocName: string) => {
@@ -492,6 +651,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.clear();
     setIsWalletConnected(false);
     setWalletAddress('');
+    setWalletBalance('0');
     setCurrentRole('guest');
     setActiveNgoId(null);
     setDonorProfile(null);
@@ -505,9 +665,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         isWalletConnected,
         walletAddress,
+        walletBalance,
         connectWallet,
         disconnectWallet,
         bindWalletToProfile,
+        refreshBalance,
         currentRole,
         setCurrentRole,
         activeNgoId,

@@ -39,7 +39,7 @@ export const RoleSwitcher: React.FC = () => {
         setDonorProfile({
           name: 'Sarah Connor',
           email: 'sarah@skynet-resistance.io',
-          wallet: '0x71C4B4E512d22C6e4A73193e0bB7a17f6983A90a'
+          wallet: ''
         });
       }
     }
