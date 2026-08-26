@@ -4,6 +4,7 @@ import { useWeb3 } from '../../context/Web3Context';
 import { useAuth } from '../../context/AuthContext';
 import type { Campaign } from '../../context/Web3Context';
 import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw, ArrowRight, LogOut } from 'lucide-react';
+import axiosInstance from '../../utils/axiosInstance';
 import { DonationModal } from '../../components/DonationModal';
 
 interface DonorDashboardProps {
@@ -42,6 +43,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   // Fund Map active project selection
   const [mapCampaignId, setMapCampaignId] = useState<string>('');
   const [selectedNodeIndex, setSelectedNodeIndex] = useState<number>(0);
+  const [campaignProofs, setCampaignProofs] = useState<any[]>([]);
 
   // Set default map campaign ID once campaigns are loaded
   useEffect(() => {
@@ -49,6 +51,21 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       setMapCampaignId(campaigns[0].id);
     }
   }, [campaigns, mapCampaignId]);
+
+  // Fetch NGO Proof Requests for the selected visual tracker campaign
+  useEffect(() => {
+    if (mapCampaignId) {
+      axiosInstance.get(`/proofs/campaign/${mapCampaignId}`)
+        .then(res => {
+          if (res.data && res.data.success) {
+            setCampaignProofs(res.data.data);
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to fetch campaign proof requests in DonorDashboard:', err);
+        });
+    }
+  }, [mapCampaignId]);
 
   // Load preselected campaign from landing page
   useEffect(() => {
@@ -84,44 +101,66 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  // Construct 4-stage milestones for selectedMapCampaign
+  // Construct 4-stage connected milestones linked to real NGO proof requests
   const targetVal = selectedMapCampaign?.target || 1.0;
-  const quarterVal = parseFloat((targetVal * 0.25).toFixed(4));
 
-  const mapPhases = [
-    {
-      id: 'm1',
-      title: 'Phase 1: Initial Allocation',
-      amount: quarterVal,
-      status: 'Released',
-      proofText: 'Phase 1 baseline site assessment, supply procurement, and initial infrastructure setup.',
-      transactionHash: '0x73fc54df9e0b88f958bfbe2ba258b73b309d243e69b8ea727adeec27028aef19'
-    },
-    {
-      id: 'm2',
-      title: 'Phase 2: Intermediate Progress',
-      amount: quarterVal,
-      status: 'Approved',
-      proofText: 'Mid-term milestone deployment, on-site audit verification, and equipment distribution.',
-      transactionHash: '0x881ce4f7ba61997f412f09eb12a61f9c31fbaf8fda2ce3c3a8db8dbe03606d67'
-    },
-    {
-      id: 'm3',
-      title: 'Phase 3: Final Completion',
-      amount: quarterVal,
-      status: 'Pending',
-      proofText: 'Final execution stage awaiting NGO field audit submission.',
-      transactionHash: ''
-    },
-    {
-      id: 'm4',
-      title: 'Phase 4: Emergency / Unplanned Expense',
-      amount: quarterVal,
-      status: 'Pending',
-      proofText: 'Contingency reserve locked in escrow for unforeseen field adjustments.',
-      transactionHash: ''
-    }
+  const phaseConfig = [
+    { id: 'm1', title: 'Phase 1: Initial Allocation', capRatio: 0.25 },
+    { id: 'm2', title: 'Phase 2: Intermediate Progress', capRatio: 0.25 },
+    { id: 'm3', title: 'Phase 3: Final Completion', capRatio: 0.50 },
+    { id: 'm4', title: 'Phase 4: Emergency / Unplanned Expense', capRatio: 0.25 },
   ];
+
+  const mapPhases = phaseConfig.map((phase) => {
+    const capAmount = parseFloat((targetVal * phase.capRatio).toFixed(4));
+
+    // Match proof requests for this phase
+    const matchingProofs = campaignProofs.filter((p: any) =>
+      p.milestonePhase && p.milestonePhase.toLowerCase().trim() === phase.title.toLowerCase().trim()
+    );
+
+    const approvedProof = matchingProofs.find((p: any) => p.isApproved);
+    const pendingProof = matchingProofs.find((p: any) => !p.isApproved && !p.isRejected);
+    const activeProof = approvedProof || pendingProof || matchingProofs[0];
+
+    // Sum of requested/released amounts from NGO proof claims
+    const totalAmountRequested = matchingProofs.reduce((sum: number, p: any) => sum + (p.amountRequested || 0), 0);
+    const totalAmountApproved = matchingProofs
+      .filter((p: any) => p.isApproved)
+      .reduce((sum: number, p: any) => sum + (p.amountRequested || 0), 0);
+
+    const displayRequested = approvedProof
+      ? totalAmountApproved
+      : pendingProof
+      ? totalAmountRequested
+      : 0;
+
+    let status = 'Pending';
+    if (approvedProof) {
+      status = 'Released'; // Green / Checkmark badge
+    } else if (pendingProof) {
+      status = 'Approved'; // Yellow / Clock badge
+    }
+
+    const proofText = activeProof?.title || activeProof?.description || 'Milestone execution awaiting proof upload.';
+    const transactionHash = activeProof?.payoutTxHash || activeProof?.transactionHash || '';
+    const ngoWallet = activeProof?.ngoWallet || (typeof selectedMapCampaign?.ngoId === 'string' && selectedMapCampaign.ngoId.startsWith('0x') ? selectedMapCampaign.ngoId : (selectedMapCampaign?.ngoWallet || ''));
+
+    return {
+      id: phase.id,
+      title: phase.title,
+      amount: capAmount,
+      capAmount,
+      displayRequested,
+      status,
+      isApproved: Boolean(approvedProof),
+      isPending: Boolean(pendingProof),
+      activeProof,
+      proofText,
+      transactionHash,
+      ngoWallet: ngoWallet || '',
+    };
+  });
 
   // Dynamic FIFO Calculation for selectedNodeIndex against campaign donations & payouts
   const getFifoAuditData = (nodeIdx: number) => {
@@ -129,7 +168,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       return {
         allocatedAmount: 0,
         remainingEscrow: 0,
-        badgeStatus: 'Locked in Escrow'
+        badgeStatus: '100% LOCKED IN ESCROW'
       };
     }
 
@@ -146,7 +185,19 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       return {
         allocatedAmount: 0,
         remainingEscrow: 0,
-        badgeStatus: 'Locked in Escrow'
+        badgeStatus: '100% LOCKED IN ESCROW'
+      };
+    }
+
+    const currentNode = mapPhases[nodeIdx];
+
+    // Issue 1 Fix: Strict Admin Approval Guard
+    // If proof is NOT approved by Admin, allocatedAmount MUST be 0.0000 ETH and status strictly "100% LOCKED IN ESCROW"
+    if (!currentNode || !currentNode.isApproved) {
+      return {
+        allocatedAmount: 0,
+        remainingEscrow: donorTotalContribution,
+        badgeStatus: currentNode?.isPending ? 'PENDING ADMIN AUDIT' : '100% LOCKED IN ESCROW'
       };
     }
 
@@ -172,6 +223,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       });
     });
 
+    const quarterVal = parseFloat((targetVal * 0.25).toFixed(4));
     const targetMs = msBounds[nodeIdx] || { start: nodeIdx * quarterVal, end: (nodeIdx + 1) * quarterVal };
     let allocatedAmount = 0;
 
@@ -187,24 +239,26 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     let cumulativeAllocatedUpToNode = 0;
     for (let k = 0; k <= nodeIdx; k++) {
       const ms = msBounds[k] || { start: k * quarterVal, end: (k + 1) * quarterVal };
-      donorIntervals.forEach(interval => {
-        if (interval.isConnectedDonor) {
-          const overlapStart = Math.max(interval.start, ms.start);
-          const overlapEnd = Math.min(interval.end, ms.end);
-          const overlap = Math.max(0, overlapEnd - overlapStart);
-          cumulativeAllocatedUpToNode += overlap;
-        }
-      });
+      if (mapPhases[k]?.isApproved) {
+        donorIntervals.forEach(interval => {
+          if (interval.isConnectedDonor) {
+            const overlapStart = Math.max(interval.start, ms.start);
+            const overlapEnd = Math.min(interval.end, ms.end);
+            const overlap = Math.max(0, overlapEnd - overlapStart);
+            cumulativeAllocatedUpToNode += overlap;
+          }
+        });
+      }
     }
 
     const remainingEscrow = Math.max(0, donorTotalContribution - cumulativeAllocatedUpToNode);
 
-    let badgeStatus = 'Locked in Escrow';
+    let badgeStatus = '100% LOCKED IN ESCROW';
     if (allocatedAmount > 0) {
       if (remainingEscrow === 0) {
-        badgeStatus = 'Fully Utilized';
+        badgeStatus = 'FULLY UTILIZED';
       } else {
-        badgeStatus = 'Partially Utilized';
+        badgeStatus = 'PARTIALLY UTILIZED';
       }
     }
 
@@ -217,7 +271,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
   const activeFifoData = getFifoAuditData(selectedNodeIndex);
   const activeNode = mapPhases[selectedNodeIndex];
-  const ngoWalletAddress = selectedMapCampaign?.ngoId || '0x70997970c51812dc3a010c7d01b50e0d17dc79c8';
 
   return (
     <div className="min-h-screen bg-slate-50 pt-28 pb-16 px-6 md:px-12 relative">
@@ -490,8 +543,8 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
                     {mapPhases.map((m, idx) => {
                       const isSelected = selectedNodeIndex === idx;
-                      const isReleased = m.status === 'Released';
-                      const isApproved = m.status === 'Approved';
+                      const isReleased = m.isApproved;
+                      const isPending = m.isPending;
 
                       return (
                         <motion.div
@@ -506,14 +559,14 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             } ${
                               isReleased
                                 ? 'bg-emerald-500 border-emerald-200 text-white shadow-lg glow-green'
-                                : isApproved
-                                ? 'bg-amber-400 border-amber-200 text-white shadow-lg glow-gold'
+                                : isPending
+                                ? 'bg-amber-400 border-amber-200 text-white shadow-lg glow-gold animate-pulse'
                                 : 'bg-white border-slate-200 text-slate-400'
                             }`}
                           >
                             {isReleased ? (
                               <CheckCircle size={22} />
-                            ) : isApproved ? (
+                            ) : isPending ? (
                               <Clock size={22} />
                             ) : (
                               <span className="font-heading font-extrabold text-base">{idx + 1}</span>
@@ -528,8 +581,8 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             >
                               {m.title}
                             </span>
-                            <span className="block text-[10px] font-semibold text-slate-400 mt-0.5">
-                              {m.amount} ETH
+                            <span className="block text-[10px] font-semibold text-slate-500 mt-0.5">
+                              {m.displayRequested > 0 ? `${m.displayRequested}` : `0`} / {m.capAmount} Cap
                             </span>
                           </div>
                         </motion.div>
@@ -595,34 +648,54 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             Settlement Information
                           </h4>
                         </div>
-                        <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-200 text-slate-700">
-                          {activeNode.status === 'Released' ? 'Settled On-Chain' : 'Escrow Pending'}
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                          activeNode.isApproved && activeNode.transactionHash
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : activeNode.activeProof
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-slate-200 text-slate-600 border border-slate-300'
+                        }`}>
+                          {activeNode.isApproved && activeNode.transactionHash
+                            ? 'SETTLED ON-CHAIN'
+                            : activeNode.activeProof
+                            ? 'AWAITING ADMIN APPROVAL'
+                            : 'PHASE LOCKED'}
                         </span>
                       </div>
 
                       <div className="flex flex-col gap-3.5">
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-500 font-semibold">NGO Recipient Wallet</span>
-                          <span
-                            className="font-mono text-slate-800 font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px]"
-                            title={selectedMapCampaign?.ngoName || 'Verified NGO'}
-                          >
-                            {ngoWalletAddress.length > 12 ? `${ngoWalletAddress.slice(0, 6)}...${ngoWalletAddress.slice(-4)}` : ngoWalletAddress}
-                          </span>
+                          {activeNode.ngoWallet && activeNode.ngoWallet.startsWith('0x') ? (
+                            <span
+                              className="font-mono text-slate-800 font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px]"
+                              title={activeNode.ngoWallet}
+                            >
+                              {activeNode.ngoWallet.length > 12 ? `${activeNode.ngoWallet.slice(0, 6)}...${activeNode.ngoWallet.slice(-4)}` : activeNode.ngoWallet}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/60">
+                              Pending NGO Claim Submission
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-500 font-semibold">Blockchain Payout Transaction Hash</span>
-                          {activeNode.transactionHash ? (
+                          {activeNode.isApproved && activeNode.transactionHash ? (
                             <span
                               className="font-mono text-trust-blue font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px] truncate max-w-[180px]"
                               title={activeNode.transactionHash}
                             >
                               {activeNode.transactionHash.slice(0, 8)}...{activeNode.transactionHash.slice(-6)}
                             </span>
+                          ) : activeNode.activeProof ? (
+                            <span className="text-amber-700 font-bold italic text-[11px] bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60">
+                              Awaiting Admin Release
+                            </span>
                           ) : (
-                            <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2 py-0.5 rounded">
-                              Pending Escrow Release
+                            <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/60">
+                              Awaiting Proof Upload
                             </span>
                           )}
                         </div>

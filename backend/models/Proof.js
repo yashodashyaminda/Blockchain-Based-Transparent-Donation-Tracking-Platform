@@ -55,6 +55,11 @@ const ProofSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    payoutTxHash: {
+      type: String,
+      trim: true,
+      default: '',
+    },
   },
   {
     timestamps: true,

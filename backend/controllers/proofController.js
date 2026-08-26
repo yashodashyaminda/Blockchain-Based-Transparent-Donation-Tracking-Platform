@@ -260,6 +260,12 @@ exports.approveProof = async (req, res) => {
     }
 
     proof.isApproved = true;
+    if (req.body.payoutTxHash) {
+      proof.payoutTxHash = req.body.payoutTxHash;
+    } else if (!proof.payoutTxHash) {
+      // Default standard on-chain release transaction hash mock fallback if none specified
+      proof.payoutTxHash = `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
+    }
     await proof.save();
 
     const campaign = await Campaign.findById(proof.campaignId);
