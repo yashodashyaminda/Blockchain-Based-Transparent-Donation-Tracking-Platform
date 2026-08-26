@@ -94,6 +94,7 @@ export interface Web3ContextType {
   // Helpers
   resetState: () => void;
   refreshCampaigns: () => Promise<void>;
+  refreshTransactions: (walletAddress?: string) => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -181,24 +182,37 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const refreshTransactions = useCallback(async () => {
+  const refreshTransactions = useCallback(async (activeAddr?: string) => {
+    const targetAddr = activeAddr || walletAddress;
+
+    if (!isWalletConnected && !activeAddr) {
+      setTransactions([]);
+      return;
+    }
+
+    if (!targetAddr) {
+      setTransactions([]);
+      return;
+    }
+
     try {
-      const response = await axiosInstance.get('/donations');
+      const response = await axiosInstance.get(`/donations/wallet/${targetAddr}`);
       if (response.data && response.data.success) {
         const mapped = response.data.data.map((d: any) => ({
           hash: d.transactionHash,
           date: d.date ? new Date(d.date).toISOString().slice(0, 19).replace('T', ' ') : new Date().toISOString().slice(0, 19).replace('T', ' '),
           amount: d.amount,
-          donorAddress: d.donorId?.walletAddress || 'On-Chain Donor',
+          donorAddress: d.donorId?.walletAddress || d.donorAddress || targetAddr,
           campaignId: d.campaignId?._id || d.campaignId,
           campaignName: d.campaignId?.title || 'Transparent Campaign'
         }));
         setTransactions(mapped);
       }
     } catch (err) {
-      console.warn('Backend transactions fetch warning:', err);
+      console.warn('Backend wallet transactions fetch warning:', err);
+      setTransactions([]);
     }
-  }, []);
+  }, [isWalletConnected, walletAddress]);
 
   useEffect(() => {
     refreshCampaigns();
@@ -317,16 +331,22 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      let accounts: string[] = [];
       try {
         await ethereum.request({
           method: 'wallet_requestPermissions',
           params: [{ eth_accounts: {} }]
         });
+        accounts = await ethereum.request({ method: 'eth_accounts' });
       } catch (permErr: any) {
-        // Fallback to eth_requestAccounts
+        // If user explicitly rejected or closed the connection popup (code 4001), abort immediately!
+        if (permErr?.code === 4001 || permErr?.message?.includes('rejected')) {
+          console.log('User cancelled or closed MetaMask connection popup.');
+          return null;
+        }
+        // Fallback to eth_requestAccounts only for providers that do not support wallet_requestPermissions
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
       }
-
-      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
 
       if (accounts && accounts.length > 0) {
         const addr = accounts[0];
@@ -362,6 +382,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('⚠️ Wallet binding to backend user profile non-blocking notice:', bindErr);
         }
 
+        refreshTransactions(addr);
         return addr;
       }
     } catch (err: any) {
@@ -377,15 +398,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const bindWalletToProfile = async (customAddr?: string): Promise<string | null> => {
     if (customAddr) {
-      setWalletAddress(customAddr);
       const isExplicit = localStorage.getItem('isWalletConnected') === 'true' || localStorage.getItem('wallet_connected') === 'true';
       if (isExplicit) {
+        setWalletAddress(customAddr);
         setIsWalletConnected(true);
+        refreshTransactions(customAddr);
+        if (currentRole === 'donor' && donorProfile) {
+          setDonorProfile({ ...donorProfile, wallet: customAddr });
+        }
+        return customAddr;
       }
-      if (currentRole === 'donor' && donorProfile) {
-        setDonorProfile({ ...donorProfile, wallet: customAddr });
-      }
-      return customAddr;
+      return null;
     }
     return await connectWallet();
   };
@@ -655,10 +678,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Backend REST sync notice:', backendErr);
       }
 
-      // Refresh balances, campaigns, and transaction ledger
+      // Refresh balances, campaigns, and transaction ledger strictly for active wallet
       await refreshBalance(walletAddress);
       await refreshCampaigns();
-      await refreshTransactions();
+      await refreshTransactions(walletAddress);
 
       return { success: true, hash: txHash };
     } catch (err: any) {
@@ -761,7 +784,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         validateMilestoneProof,
         transactions,
         resetState,
-        refreshCampaigns
+        refreshCampaigns,
+        refreshTransactions
       }}
     >
       {children}

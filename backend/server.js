@@ -60,8 +60,26 @@ process.on('unhandledRejection', (err, promise) => {
 const { listenToBlockchainEvents } = require('./services/web3Service');
 
 // MongoDB connect වුනාට පස්සේ මේක call කරන්න
-mongoose.connection.once('open', () => {
+mongoose.connection.once('open', async () => {
   console.log('MongoDB Connected');
+
+  // Auto-backfill missing donorAddress for existing past donations
+  try {
+    const Donation = require('./models/Donation');
+    const unpopulatedDonations = await Donation.find({
+      $or: [{ donorAddress: { $exists: false } }, { donorAddress: '' }, { donorAddress: null }]
+    }).populate('donorId');
+
+    for (const d of unpopulatedDonations) {
+      if (d.donorId && d.donorId.walletAddress) {
+        d.donorAddress = d.donorId.walletAddress.toLowerCase();
+        await d.save();
+      }
+    }
+    console.log('✅ Donation donorAddress auto-backfill check completed.');
+  } catch (err) {
+    console.warn('Donation donorAddress backfill notice:', err.message);
+  }
 
   // Start listening to Blockchain Events
   listenToBlockchainEvents();

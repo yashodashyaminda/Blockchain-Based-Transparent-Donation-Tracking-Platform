@@ -28,20 +28,32 @@ exports.createDonation = async (req, res) => {
       });
     }
 
-    // 3. Resolve donor profile ID (from auth middleware or wallet address)
+    // 3. Resolve donor profile ID and address
     let donorId = req.user ? req.user._id : null;
-    if (!donorId && donorAddress) {
-      let donorObj = await User.findOne({ walletAddress: { $regex: new RegExp(`^${donorAddress}$`, "i") } });
+    let targetWalletAddress = donorAddress ? donorAddress.trim() : (req.user?.walletAddress || '');
+
+    if (donorAddress) {
+      let donorObj = await User.findOne({ walletAddress: { $regex: new RegExp(`^${donorAddress.trim()}$`, "i") } });
       if (!donorObj) {
-        donorObj = await User.create({
-          name: `Donor ${donorAddress.slice(0, 6)}`,
-          email: `${donorAddress.toLowerCase()}@donor.eth`,
-          walletAddress: donorAddress,
-          role: 'Donor',
-          password: 'web3_donor_pass_2026'
-        });
+        if (req.user) {
+          donorObj = await User.findById(req.user._id);
+          if (donorObj) {
+            donorObj.walletAddress = donorAddress.trim();
+            await donorObj.save();
+          }
+        } else {
+          donorObj = await User.create({
+            name: `Donor ${donorAddress.slice(0, 6)}`,
+            email: `${donorAddress.toLowerCase()}@donor.eth`,
+            walletAddress: donorAddress.trim(),
+            role: 'Donor',
+            password: 'web3_donor_pass_2026'
+          });
+        }
       }
-      donorId = donorObj._id;
+      if (donorObj) {
+        donorId = donorObj._id;
+      }
     }
 
     if (!donorId) {
@@ -51,15 +63,39 @@ exports.createDonation = async (req, res) => {
       });
     }
 
-    // 4. Create the donation transaction log
+    // 4. Check if transactionHash already exists to eliminate E11000 duplicate key error
+    if (transactionHash) {
+      const existingDonation = await Donation.findOne({
+        transactionHash: { $regex: new RegExp(`^${transactionHash.trim()}$`, 'i') }
+      });
+
+      if (existingDonation) {
+        if (targetWalletAddress) {
+          existingDonation.donorAddress = targetWalletAddress.toLowerCase();
+        }
+        if (donorId) {
+          existingDonation.donorId = donorId;
+        }
+        await existingDonation.save();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Donation transaction already registered and synchronized',
+          data: existingDonation,
+        });
+      }
+    }
+
+    // 5. Create the donation transaction log
     const donation = await Donation.create({
       campaignId,
       donorId,
+      donorAddress: targetWalletAddress ? targetWalletAddress.toLowerCase() : '',
       amount: Number(amount),
       transactionHash,
     });
 
-    // 5. Update the campaign's total raised amount
+    // 6. Update the campaign's total raised amount
     campaign.raisedAmount += Number(amount);
 
     if (campaign.raisedAmount >= campaign.targetAmount) {
@@ -125,22 +161,19 @@ exports.getCampaignDonations = async (req, res) => {
  */
 exports.getDonationsByWallet = async (req, res) => {
   try {
-    const address = req.params.address;
-    const donorObj = await User.findOne({ walletAddress: { $regex: new RegExp(`^${address}$`, "i") } });
-    if (!donorObj) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        data: [],
+    const address = (req.params.walletAddress || req.params.address || '').toLowerCase().trim();
+    if (!address) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid walletAddress parameter',
       });
     }
 
-    const donations = await Donation.find({ donorId: donorObj._id })
-      .populate({
-        path: 'campaignId',
-        select: 'title targetAmount raisedAmount status coverImageIPFSHash',
-      })
-      .sort({ date: -1 });
+    // Filter strictly by the requested connected wallet address
+    const donations = await Donation.find({ donorAddress: address })
+      .populate('donorId', 'name email walletAddress')
+      .populate('campaignId', 'title targetAmount raisedAmount status coverImageIPFSHash')
+      .sort({ date: -1, createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -164,12 +197,16 @@ exports.getDonationsByWallet = async (req, res) => {
  */
 exports.getMyDonations = async (req, res) => {
   try {
-    const donations = await Donation.find({ donorId: req.user._id })
-      .populate({
-        path: 'campaignId',
-        select: 'title targetAmount raisedAmount status coverImageIPFSHash',
-      })
-      .sort({ date: -1 });
+    const userWalletAddress = req.user?.walletAddress ? req.user.walletAddress.toLowerCase().trim() : '';
+
+    const query = userWalletAddress
+      ? { $or: [{ donorId: req.user._id }, { donorAddress: userWalletAddress }] }
+      : { donorId: req.user._id };
+
+    const donations = await Donation.find(query)
+      .populate('donorId', 'name email walletAddress')
+      .populate('campaignId', 'title targetAmount raisedAmount status coverImageIPFSHash')
+      .sort({ date: -1, createdAt: -1 });
 
     return res.status(200).json({
       success: true,

@@ -69,10 +69,11 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     c.ngoName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filter transactions for the connected wallet address strictly
+  // Filter transactions strictly for the currently CONNECTED MetaMask wallet address
   const myTransactions = transactions.filter(t =>
     isWalletConnected &&
     walletAddress &&
+    t.donorAddress &&
     t.donorAddress.toLowerCase() === walletAddress.toLowerCase()
   );
 

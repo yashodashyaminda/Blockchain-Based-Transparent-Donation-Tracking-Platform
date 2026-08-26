@@ -59,9 +59,23 @@ const listenToBlockchainEvents = () => {
                 }
                 let donorId = donor._id;
 
+                // Check if donation transaction hash was already logged by REST API or previous listener
+                const existingDonation = await Donation.findOne({
+                    transactionHash: { $regex: new RegExp(`^${event.log.transactionHash.trim()}$`, "i") }
+                });
+
+                if (existingDonation) {
+                    existingDonation.donorAddress = donorAddress.toLowerCase();
+                    if (donorId) existingDonation.donorId = donorId;
+                    await existingDonation.save();
+                    console.log(`ℹ️ Transaction ${event.log.transactionHash} already exists in DB. Synchronized donor details.`);
+                    return;
+                }
+
                 const newDonation = await Donation.create({
                     campaignId: campaign._id,
                     donorId: donorId,
+                    donorAddress: donorAddress.toLowerCase(),
                     amount: parseFloat(amountInEther),
                     transactionHash: event.log.transactionHash,
                 });

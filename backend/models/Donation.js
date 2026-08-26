@@ -15,10 +15,15 @@ const DonationSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Please specify the donor profile logged for this transaction'],
     },
+    donorAddress: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
     amount: {
       type: Number,
       required: [true, 'Please specify the donation value in USD'],
-      min: [1, 'Donation amount must be greater than 0'],
+      min: [0.01, 'Donation amount must be greater than 0'],
     },
     transactionHash: {
       type: String,
