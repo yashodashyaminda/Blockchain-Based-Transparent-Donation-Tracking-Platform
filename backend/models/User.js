@@ -25,7 +25,7 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Please add a password'],
+      required: false,
       minlength: [6, 'Password must be at least 6 characters long'],
       select: false, // Prevents returning hashed password by default in queries
     },
@@ -75,8 +75,8 @@ const UserSchema = new mongoose.Schema(
  * Runs automatically prior to saving a User record to database.
  */
 UserSchema.pre('save', async function (next) {
-  // Only hash password if it has been modified or created new
-  if (!this.isModified('password')) {
+  // Only hash password if it has been modified and exists
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
 

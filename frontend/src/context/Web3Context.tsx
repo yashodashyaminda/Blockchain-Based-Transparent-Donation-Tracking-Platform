@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import axiosInstance from '../utils/axiosInstance';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../config/contractConfig';
 
 // Types
 export interface NGO {
@@ -204,9 +205,29 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const refreshTransactions = useCallback(async () => {
+    try {
+      const response = await axiosInstance.get('/donations');
+      if (response.data && response.data.success) {
+        const mapped = response.data.data.map((d: any) => ({
+          hash: d.transactionHash,
+          date: d.date ? new Date(d.date).toISOString().slice(0, 19).replace('T', ' ') : new Date().toISOString().slice(0, 19).replace('T', ' '),
+          amount: d.amount,
+          donorAddress: d.donorId?.walletAddress || 'On-Chain Donor',
+          campaignId: d.campaignId?._id || d.campaignId,
+          campaignName: d.campaignId?.title || 'Transparent Campaign'
+        }));
+        setTransactions(mapped);
+      }
+    } catch (err) {
+      console.warn('Backend transactions fetch warning:', err);
+    }
+  }, []);
+
   useEffect(() => {
     refreshCampaigns();
-  }, [refreshCampaigns]);
+    refreshTransactions();
+  }, [refreshCampaigns, refreshTransactions]);
 
   // Auto check connected account on load if already authorized
   useEffect(() => {
@@ -524,18 +545,50 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const donateToCampaign = async (campaignId: string, amountEth: number): Promise<{ success: boolean; hash?: string; error?: string }> => {
     if (!isWalletConnected || !walletAddress) {
-      return { success: false, error: 'Wallet is not connected' };
+      return { success: false, error: 'Wallet is not connected. Please connect MetaMask.' };
+    }
+
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
+      return { success: false, error: 'MetaMask extension is not installed in your browser.' };
     }
 
     try {
       const campaign = campaigns.find(c => c.id === campaignId);
       if (!campaign) return { success: false, error: 'Campaign not found' };
 
-      // Generate valid transaction hash
-      const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+      // Convert MongoDB 24-char hex ObjectId (or custom ID) to uint256 BigInt for Solidity
+      let numericCampaignId: bigint;
+      const cleanHex = campaignId.replace(/[^0-9a-fA-F]/g, '');
+      if (cleanHex.length >= 24) {
+        numericCampaignId = BigInt("0x" + cleanHex.slice(0, 24));
+      } else if (cleanHex.length > 0) {
+        numericCampaignId = BigInt("0x" + cleanHex.padStart(24, '0'));
+      } else {
+        let hexStr = '';
+        for (let i = 0; i < campaignId.length; i++) {
+          hexStr += campaignId.charCodeAt(i).toString(16);
+        }
+        numericCampaignId = BigInt("0x" + hexStr.slice(0, 24).padStart(24, '0'));
+      }
+
+      // Initialize BrowserProvider and Signer via MetaMask
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+
+      // Instantiate deployed DonationTracker contract
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      const valueWei = ethers.parseEther(amountEth.toString());
+
+      // 🚀 Trigger MetaMask to sign & send on-chain transaction!
+      const tx = await contract.donate(numericCampaignId, { value: valueWei });
+
+      // Wait for transaction block mining confirmation
+      const receipt = await tx.wait();
+      const txHash = receipt?.hash || tx.hash;
       const dateStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-      // Update campaign raised total in state
+      // Update local campaign raised total
       setCampaigns(prev => 
         prev.map(c => {
           if (c.id === campaignId) {
@@ -556,29 +609,29 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setTransactions(prev => [newTx, ...prev]);
 
-      // Deduct balance locally for instant feedback
-      const currentBalNum = parseFloat(walletBalance) || 0;
-      if (currentBalNum > 0) {
-        const updatedBal = Math.max(0, currentBalNum - amountEth - 0.00021).toFixed(4);
-        setWalletBalance(updatedBal);
-      }
-
+      // Sync donation with backend API
       try {
-        await axiosInstance.post(`/campaigns/${campaignId}/donate`, {
+        await axiosInstance.post('/donations', {
+          campaignId: campaignId,
           donorAddress: walletAddress,
           amount: amountEth,
           transactionHash: txHash
         });
       } catch (backendErr) {
-        console.warn('Backend sync omitted/non-blocking:', backendErr);
+        console.warn('Backend REST sync warning (WebSocket event listener will also ingest):', backendErr);
       }
+
+      // Refresh actual ETH balance, campaigns, and transactions from blockchain/backend
+      await refreshBalance(walletAddress);
+      await refreshCampaigns();
+      await refreshTransactions();
 
       return { success: true, hash: txHash };
     } catch (err: any) {
-      console.error('Donation transaction failed:', err);
+      console.error('On-chain donation failed:', err);
       return { 
         success: false, 
-        error: err?.message || 'Transaction failed' 
+        error: err?.reason || err?.message || 'Transaction was cancelled or rejected in MetaMask' 
       };
     }
   };

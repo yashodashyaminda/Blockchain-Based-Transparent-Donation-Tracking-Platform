@@ -35,7 +35,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Donate modal states
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
@@ -70,9 +70,9 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   );
 
   // Filter transactions for the connected wallet address strictly
-  const myTransactions = transactions.filter(t => 
-    isWalletConnected && 
-    walletAddress && 
+  const myTransactions = transactions.filter(t =>
+    isWalletConnected &&
+    walletAddress &&
     t.donorAddress.toLowerCase() === walletAddress.toLowerCase()
   );
 
@@ -92,7 +92,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col gap-8 relative z-10">
-        
+
         {/* Header Profile Dashboard */}
         <div className="cinematic-glass rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -129,25 +129,22 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
             <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
               <button
                 onClick={() => setActiveTab('browse')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                  activeTab === 'browse' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${activeTab === 'browse' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 Browse Campaigns
               </button>
               <button
                 onClick={() => setActiveTab('map')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                  activeTab === 'map' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${activeTab === 'map' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 Visual Fund Tracker
               </button>
               <button
                 onClick={() => setActiveTab('ledger')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                  activeTab === 'ledger' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${activeTab === 'ledger' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 My Ledger ({myTransactions.length})
               </button>
@@ -188,7 +185,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
         {/* WORKSPACE SWITCHER */}
         <div className="min-h-[480px]">
           <AnimatePresence mode="wait">
-            
+
             {/* TAB 1: BROWSE CAMPAIGNS */}
             {activeTab === 'browse' && (
               <motion.div
@@ -307,11 +304,10 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                           setMapCampaignId(c.id);
                           setActiveMilestoneNode(null);
                         }}
-                        className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all duration-200 cursor-pointer ${
-                          mapCampaignId === c.id
-                            ? 'bg-trust-blue-light border-trust-blue text-trust-blue shadow-sm'
-                            : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
-                        }`}
+                        className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all duration-200 cursor-pointer ${mapCampaignId === c.id
+                          ? 'bg-trust-blue-light border-trust-blue text-trust-blue shadow-sm'
+                          : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
+                          }`}
                       >
                         <span className="block font-bold text-slate-900 mb-0.5">{c.name}</span>
                         <span className="text-[10px] text-slate-500">NGO Partner: {c.ngoName}</span>
@@ -334,13 +330,13 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                   <div className="relative py-12 flex justify-between items-center px-4 overflow-x-auto min-h-[220px]">
                     <div className="absolute left-[8%] right-[8%] top-[50%] -translate-y-1/2 z-0 h-1">
                       <svg className="w-full h-2 overflow-visible" fill="none">
-                        <line 
-                          x1="0" y1="2" x2="100%" y2="2" 
-                          stroke="#e2e8f0" strokeWidth="3" 
+                        <line
+                          x1="0" y1="2" x2="100%" y2="2"
+                          stroke="#e2e8f0" strokeWidth="3"
                         />
-                        <line 
-                          x1="0" y1="2" x2="100%" y2="2" 
-                          stroke="#2563eb" strokeWidth="3" 
+                        <line
+                          x1="0" y1="2" x2="100%" y2="2"
+                          stroke="#2563eb" strokeWidth="3"
                           className="animate-flow-line"
                         />
                       </svg>
@@ -349,7 +345,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                     {selectedMapCampaign?.milestones.map((m, idx) => {
                       const isReleased = m.status === 'Released';
                       const isApproved = m.status === 'Approved';
-                      
+
                       return (
                         <motion.div
                           key={m.id}
@@ -357,13 +353,12 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                           onClick={() => setActiveMilestoneNode({ ...m, index: idx + 1 })}
                           className="relative z-10 flex flex-col items-center cursor-pointer select-none group shrink-0 w-28 text-center"
                         >
-                          <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
-                            isReleased
-                              ? 'bg-emerald-500 border-emerald-200 text-white shadow-lg glow-green'
-                              : isApproved
+                          <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${isReleased
+                            ? 'bg-emerald-500 border-emerald-200 text-white shadow-lg glow-green'
+                            : isApproved
                               ? 'bg-amber-400 border-amber-200 text-white shadow-lg glow-gold'
                               : 'bg-white border-slate-200 text-slate-400'
-                          }`}>
+                            }`}>
                             {isReleased ? (
                               <CheckCircle size={20} />
                             ) : isApproved ? (
@@ -401,13 +396,12 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                               <span className="text-[9px] uppercase font-extrabold text-trust-blue tracking-wider">
                                 Milestone Node Phase {activeMilestoneNode.index} Details
                               </span>
-                              <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                                activeMilestoneNode.status === 'Released'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : activeMilestoneNode.status === 'Approved'
+                              <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-full ${activeMilestoneNode.status === 'Released'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : activeMilestoneNode.status === 'Approved'
                                   ? 'bg-amber-100 text-amber-700 animate-pulse'
                                   : 'bg-slate-200 text-slate-600'
-                              }`}>
+                                }`}>
                                 {activeMilestoneNode.status === 'Released' ? 'Released' : activeMilestoneNode.status === 'Approved' ? 'Pending Admin Audit' : 'Locked Escrow'}
                               </span>
                             </div>
@@ -417,25 +411,41 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             </p>
                           </div>
 
-                          <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
-                            <span className="font-heading font-extrabold text-base text-slate-800">{activeMilestoneNode.amount} ETH</span>
-                            {activeMilestoneNode.proofDoc && (
-                              <a
-                                href="/assets/images/3.png"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm"
-                              >
-                                <FileText size={12} className="text-slate-500" />
-                                <span>Inspect Receipt</span>
-                                <LinkIcon size={10} className="text-slate-400" />
-                              </a>
-                            )}
-                            {activeMilestoneNode.transactionHash && (
-                              <div className="text-[8px] text-slate-400 font-mono select-all truncate max-w-[150px]">
-                                Hash: {activeMilestoneNode.transactionHash}
-                              </div>
-                            )}
+                          <div className="shrink-0 flex flex-col gap-3 w-full md:w-auto md:text-right">
+                            {/* Total Cost */}
+                            <div>
+                              <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total Milestone Cost</span>
+                              <span className="font-heading font-extrabold text-lg text-slate-800">{activeMilestoneNode.amount} ETH</span>
+                            </div>
+
+                            {/* Your Contribution (FIFO Logic Display) */}
+                            <div className="bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-xl text-left md:text-right">
+                              <span className="block text-[9px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Your Contribution Used</span>
+                              <span className="font-heading font-extrabold text-base text-emerald-500">
+                                {activeMilestoneNode.donorContribution || '0'} ETH
+                              </span>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex flex-col gap-2 mt-1">
+                              {activeMilestoneNode.proofDoc && (
+                                <a
+                                  href="/assets/images/3.png"
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center justify-center md:justify-end gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
+                                >
+                                  <FileText size={12} className="text-slate-500" />
+                                  <span>Inspect Receipt</span>
+                                  <LinkIcon size={10} className="text-slate-400" />
+                                </a>
+                              )}
+                              {activeMilestoneNode.transactionHash && (
+                                <div className="text-[9px] text-slate-400 font-mono select-all truncate max-w-[200px] bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                                  Tx: {activeMilestoneNode.transactionHash}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       ) : (

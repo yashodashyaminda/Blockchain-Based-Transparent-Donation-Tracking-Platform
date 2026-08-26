@@ -30,16 +30,11 @@ const listenToBlockchainEvents = () => {
 
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
 
-        console.log(`🔌 Web3 Listener started via WebSockets. Listening to contract: ${CONTRACT_ADDRESS}`);
-
-        // Backend eka blockchain ekka connect welada kiyala check karana test eka
-        provider.on("block", (blockNumber) => {
-            console.log(`📦 New Block Mined on Blockchain: ${blockNumber}`);
-        });
+        console.log(`🔌 Web3 Listener started via WebSockets. Strictly listening to contract Donated event at: ${CONTRACT_ADDRESS}`);
 
         contract.on("Donated", async (donorAddress, campaignIdBigInt, amountBigInt, event) => {
             try {
-                console.log(`💰 New Donation Detected on Blockchain! Hash: ${event.log.transactionHash}`);
+                console.log(`💰 New Donation Event Captured from Smart Contract! Hash: ${event.log.transactionHash}`);
 
                 const amountInWei = amountBigInt.toString();
                 const amountInEther = ethers.formatEther(amountInWei);
@@ -53,11 +48,20 @@ const listenToBlockchainEvents = () => {
                 }
 
                 let donor = await User.findOne({ walletAddress: { $regex: new RegExp(`^${donorAddress}$`, "i") } });
-                let donorId = donor ? donor._id : null;
+                if (!donor) {
+                    donor = await User.create({
+                        name: `Donor ${donorAddress.slice(0, 6)}`,
+                        email: `${donorAddress.toLowerCase()}@donor.eth`,
+                        walletAddress: donorAddress,
+                        role: 'Donor',
+                        password: 'web3_donor_pass_2026'
+                    });
+                }
+                let donorId = donor._id;
 
                 const newDonation = await Donation.create({
                     campaignId: campaign._id,
-                    donorId: donorId || new mongoose.Types.ObjectId(), // Create new ObjectId properly
+                    donorId: donorId,
                     amount: parseFloat(amountInEther),
                     transactionHash: event.log.transactionHash,
                 });
