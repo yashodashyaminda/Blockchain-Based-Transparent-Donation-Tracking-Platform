@@ -19,6 +19,7 @@ app.use(express.json()); // Body-parser to parse JSON request bodies
 
 // 5. Define Core Route Mappings
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/campaigns', require('./routes/campaignRoutes'));
 app.use('/api/donations', require('./routes/donationRoutes'));
 app.use('/api/proofs', require('./routes/proofRoutes'));

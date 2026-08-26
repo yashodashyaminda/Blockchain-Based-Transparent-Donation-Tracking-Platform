@@ -130,7 +130,7 @@ const initialTransactions: Transaction[] = [];
 export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Wallet state
   const [isWalletConnected, setIsWalletConnected] = useState<boolean>(() => {
-    return localStorage.getItem('wallet_connected') === 'true';
+    return localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
   });
   const [walletAddress, setWalletAddress] = useState<string>(() => {
     return localStorage.getItem('wallet_address') || '';
@@ -229,9 +229,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshTransactions();
   }, [refreshCampaigns, refreshTransactions]);
 
-  // Auto check connected account on load if already authorized
+  // Auto check connected account on load ONLY if donor explicitly connected wallet previously
   useEffect(() => {
     const checkInitialConnection = async () => {
+      const isExplicitlyConnected = localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
+      if (!isExplicitlyConnected) {
+        setIsWalletConnected(false);
+        setWalletAddress('');
+        setWalletBalance('0');
+        return;
+      }
+
       if (typeof window !== 'undefined' && (window as any).ethereum) {
         try {
           const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -243,6 +251,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
             setWalletAddress(addr);
             setWalletBalance(formattedBal);
             setIsWalletConnected(true);
+          } else {
+            setIsWalletConnected(false);
+            setWalletAddress('');
+            setWalletBalance('0');
+            localStorage.setItem('wallet_connected', 'false');
+            localStorage.setItem('isWalletConnected', 'false');
           }
         } catch (e) {
           console.error('Error checking initial MetaMask connection:', e);
@@ -258,21 +272,27 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const ethereum = (window as any).ethereum;
 
       const handleAccountsChanged = async (accounts: string[]) => {
-        if (accounts.length === 0) {
+        const isExplicitlyConnected = localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
+        if (!isExplicitlyConnected || accounts.length === 0) {
           setIsWalletConnected(false);
           setWalletAddress('');
           setWalletBalance('0');
-        } else {
-          const newAddr = accounts[0];
-          setWalletAddress(newAddr);
-          setIsWalletConnected(true);
-          try {
-            const provider = new ethers.BrowserProvider(ethereum);
-            const bal = await provider.getBalance(newAddr);
-            setWalletBalance(parseFloat(ethers.formatEther(bal)).toFixed(4));
-          } catch (e) {
-            console.error('Error reading balance on account change:', e);
-          }
+          localStorage.setItem('wallet_connected', 'false');
+          localStorage.setItem('isWalletConnected', 'false');
+          localStorage.removeItem('wallet_address');
+          localStorage.removeItem('wallet_balance');
+          return;
+        }
+
+        const newAddr = accounts[0];
+        setWalletAddress(newAddr);
+        setIsWalletConnected(true);
+        try {
+          const provider = new ethers.BrowserProvider(ethereum);
+          const bal = await provider.getBalance(newAddr);
+          setWalletBalance(parseFloat(ethers.formatEther(bal)).toFixed(4));
+        } catch (e) {
+          console.error('Error reading balance on account change:', e);
         }
       };
 
@@ -295,8 +315,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sync state with LocalStorage
   useEffect(() => {
     localStorage.setItem('wallet_connected', String(isWalletConnected));
-    localStorage.setItem('wallet_address', walletAddress);
-    localStorage.setItem('wallet_balance', walletBalance);
+    localStorage.setItem('isWalletConnected', String(isWalletConnected));
+    if (isWalletConnected && walletAddress) {
+      localStorage.setItem('wallet_address', walletAddress);
+      localStorage.setItem('wallet_balance', walletBalance);
+    } else {
+      localStorage.removeItem('wallet_address');
+      localStorage.removeItem('wallet_balance');
+    }
     localStorage.setItem('user_role', currentRole);
     localStorage.setItem('active_ngo_id', activeNgoId || '');
     localStorage.setItem('donor_profile', donorProfile ? JSON.stringify(donorProfile) : '');
@@ -341,6 +367,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         setWalletAddress(addr);
         setWalletBalance(formattedBal);
         setIsWalletConnected(true);
+        localStorage.setItem('wallet_connected', 'true');
+        localStorage.setItem('isWalletConnected', 'true');
+        localStorage.setItem('wallet_address', addr);
+        localStorage.setItem('wallet_balance', formattedBal);
 
         if (currentRole === 'donor' && donorProfile) {
           setDonorProfile({ ...donorProfile, wallet: addr });
@@ -348,6 +378,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           setNgos(prev =>
             prev.map(n => (n.id === activeNgoId ? { ...n, wallet: addr } : n))
           );
+        }
+
+        // Attempt to bind wallet to backend user profile if token or logged-in state exists
+        try {
+          await axiosInstance.put('/users/bind-wallet', { walletAddress: addr });
+          console.log('✅ Web3 wallet address successfully bound to user profile on backend:', addr);
+        } catch (bindErr) {
+          console.warn('⚠️ Wallet binding to backend user profile non-blocking notice:', bindErr);
         }
 
         return addr;
@@ -366,7 +404,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const bindWalletToProfile = async (customAddr?: string): Promise<string | null> => {
     if (customAddr) {
       setWalletAddress(customAddr);
-      setIsWalletConnected(true);
+      const isExplicit = localStorage.getItem('isWalletConnected') === 'true' || localStorage.getItem('wallet_connected') === 'true';
+      if (isExplicit) {
+        setIsWalletConnected(true);
+      }
       if (currentRole === 'donor' && donorProfile) {
         setDonorProfile({ ...donorProfile, wallet: customAddr });
       }
@@ -379,9 +420,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsWalletConnected(false);
     setWalletAddress('');
     setWalletBalance('0');
+    localStorage.removeItem('isWalletConnected');
     localStorage.removeItem('wallet_connected');
     localStorage.removeItem('wallet_address');
     localStorage.removeItem('wallet_balance');
+    localStorage.setItem('isWalletConnected', 'false');
+    localStorage.setItem('wallet_connected', 'false');
 
     if (donorProfile) {
       setDonorProfile({ ...donorProfile, wallet: '' });
@@ -684,6 +728,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetState = () => {
     localStorage.clear();
+    localStorage.setItem('wallet_connected', 'false');
     setIsWalletConnected(false);
     setWalletAddress('');
     setWalletBalance('0');

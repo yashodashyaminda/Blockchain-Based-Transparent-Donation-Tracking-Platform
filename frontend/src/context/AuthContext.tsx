@@ -23,7 +23,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { setCurrentRole, bindWalletToProfile, setActiveNgoId, setDonorProfile, resetState } = useWeb3();
+  const { setCurrentRole, bindWalletToProfile, setActiveNgoId, setDonorProfile, resetState, disconnectWallet } = useWeb3();
 
   const [user, setUser] = useState<UserData | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -43,10 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Sync Web3Context states with authenticated Web2.5 profile
         const mappedRole = parsedUser.role.toLowerCase() as UserRole;
         setCurrentRole(mappedRole);
-        
-        if (parsedUser.walletAddress) {
-          bindWalletToProfile(parsedUser.walletAddress);
-        }
 
         if (mappedRole === 'ngo') {
           setActiveNgoId(parsedUser.id);
@@ -95,13 +91,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Log out user session
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-
+    localStorage.clear();
     setToken(null);
     setUser(null);
 
-    // Reset Web3Context back to default guest profile
+    disconnectWallet();
     resetState();
   };
 
