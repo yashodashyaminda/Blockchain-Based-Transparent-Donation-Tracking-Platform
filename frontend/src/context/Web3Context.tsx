@@ -59,7 +59,7 @@ export interface Web3ContextType {
   disconnectWallet: () => void;
   bindWalletToProfile: (customAddr?: string) => Promise<string | null>;
   refreshBalance: (addr?: string) => Promise<string>;
-  
+
   // Auth/Roles (Web2.5)
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
@@ -67,7 +67,7 @@ export interface Web3ContextType {
   setActiveNgoId: (id: string | null) => void;
   donorProfile: { name: string; email: string; wallet: string } | null;
   setDonorProfile: (profile: { name: string; email: string; wallet: string } | null) => void;
-  
+
   loginUser: (email: string, password: string) => Promise<{ success: boolean; role?: UserRole; message?: string }>;
   registerDonorUser: (data: { name: string; email: string; password?: string }) => void;
   registerNgoUser: (data: { name: string; registrationNumber: string; contactInfo?: string; email: string; password?: string; documentName: string; documentUrl: string }) => void;
@@ -83,7 +83,7 @@ export interface Web3ContextType {
   deleteCampaign: (id: string) => void;
   editCampaign: (id: string, updated: Partial<Campaign>) => void;
   donateToCampaign: (campaignId: string, amount: number) => Promise<{ success: boolean; hash?: string; error?: string }>;
-  
+
   // Milestones & Proofs
   addMilestoneProof: (campaignId: string, milestoneId: string, proofText: string, proofDocName: string) => void;
   validateMilestoneProof: (campaignId: string, milestoneId: string) => Promise<void>;
@@ -98,32 +98,8 @@ export interface Web3ContextType {
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
-// Initial Mock NGO Data Setup
-const initialNGOs: NGO[] = [
-  {
-    id: 'ngo-1',
-    name: 'Global Care Alliance',
-    email: 'info@globalcare.org',
-    registrationNumber: 'REG-2026-881A',
-    contactInfo: '+1 (555) 019-2831',
-    documentName: 'registration_certificate.pdf',
-    documentUrl: '/assets/images/3.png',
-    isVerified: true,
-    wallet: '0x3289F4eEc2f748F29Ed98D081D0bB59bB67C924c',
-  },
-  {
-    id: 'ngo-2',
-    name: 'Save the Green',
-    email: 'contact@savethegreen.org',
-    registrationNumber: 'REG-2026-994B',
-    contactInfo: '+1 (555) 019-9942',
-    documentName: 'legal_declaration_2026.pdf',
-    documentUrl: '/assets/images/3.png',
-    isVerified: false,
-    wallet: '',
-  }
-];
-
+// All Initial Data Set to Empty Arrays (Mock Data Removed)
+const initialNGOs: NGO[] = [];
 const initialCampaigns: Campaign[] = [];
 const initialTransactions: Transaction[] = [];
 
@@ -331,7 +307,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('transaction_registry', JSON.stringify(transactions));
   }, [isWalletConnected, walletAddress, walletBalance, currentRole, activeNgoId, donorProfile, ngos, campaigns, transactions]);
 
-  // Web3 Connect Wallet via MetaMask (Forces account selection picker for different wallets)
+  // Web3 Connect Wallet via MetaMask
   const connectWallet = async (): Promise<string | null> => {
     const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : undefined;
 
@@ -341,18 +317,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Force MetaMask account selection modal so donor can pick different wallet
       try {
         await ethereum.request({
           method: 'wallet_requestPermissions',
           params: [{ eth_accounts: {} }]
         });
       } catch (permErr: any) {
-        // Fallback to eth_requestAccounts if requestPermissions is closed/cancelled
+        // Fallback to eth_requestAccounts
       }
 
       const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-      
+
       if (accounts && accounts.length > 0) {
         const addr = accounts[0];
         let formattedBal = '0.0000';
@@ -380,7 +355,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           );
         }
 
-        // Attempt to bind wallet to backend user profile if token or logged-in state exists
         try {
           await axiosInstance.put('/users/bind-wallet', { walletAddress: addr });
           console.log('✅ Web3 wallet address successfully bound to user profile on backend:', addr);
@@ -432,11 +406,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Unified Web2 Login handler
   const loginUser = async (email: string, _password: string) => {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Clear previous wallet session cache on login
     setIsWalletConnected(false);
     setWalletAddress('');
     setWalletBalance('0');
@@ -458,7 +430,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const donorName = cleanEmail.split('@')[0].replace('.', ' ');
     const formattedName = donorName.charAt(0).toUpperCase() + donorName.slice(1);
-    
+
     const profile = {
       name: formattedName || 'Sarah Connor',
       email: cleanEmail,
@@ -516,7 +488,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const verifyNGO = (id: string, approve: boolean) => {
-    setNgos(prev => 
+    setNgos(prev =>
       prev.map(ngo => {
         if (ngo.id === id) {
           return { ...ngo, isVerified: approve };
@@ -529,7 +501,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const addCampaign = (name: string, category: Campaign['category'], description: string, image: string, target: number) => {
     let ngoName = 'System Admin';
     let ngoId = 'admin';
-    
+
     if (currentRole === 'ngo' && activeNgoId) {
       const activeNgo = ngos.find(n => n.id === activeNgoId);
       if (activeNgo) {
@@ -582,11 +554,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const editCampaign = (id: string, updated: Partial<Campaign>) => {
-    setCampaigns(prev => 
+    setCampaigns(prev =>
       prev.map(c => (c.id === id ? { ...c, ...updated } as Campaign : c))
     );
   };
 
+  // 🚀 Real Smart Contract Execution (Ethers.js v6)
   const donateToCampaign = async (campaignId: string, amountEth: number): Promise<{ success: boolean; hash?: string; error?: string }> => {
     if (!isWalletConnected || !walletAddress) {
       return { success: false, error: 'Wallet is not connected. Please connect MetaMask.' };
@@ -596,11 +569,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'MetaMask extension is not installed in your browser.' };
     }
 
+    if (!CONTRACT_ADDRESS) {
+      return { success: false, error: 'Smart Contract Address is not configured in contractConfig.ts!' };
+    }
+
     try {
       const campaign = campaigns.find(c => c.id === campaignId);
       if (!campaign) return { success: false, error: 'Campaign not found' };
 
-      // Convert MongoDB 24-char hex ObjectId (or custom ID) to uint256 BigInt for Solidity
+      // 1. Convert MongoDB 24-char hex ObjectId to uint256 BigInt
       let numericCampaignId: bigint;
       const cleanHex = campaignId.replace(/[^0-9a-fA-F]/g, '');
       if (cleanHex.length >= 24) {
@@ -615,25 +592,38 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         numericCampaignId = BigInt("0x" + hexStr.slice(0, 24).padStart(24, '0'));
       }
 
-      // Initialize BrowserProvider and Signer via MetaMask
+      // 2. Initialize Signer
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
 
-      // Instantiate deployed DonationTracker contract
+      // 3. Instantiate Contract Instance
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
       const valueWei = ethers.parseEther(amountEth.toString());
 
-      // 🚀 Trigger MetaMask to sign & send on-chain transaction!
-      const tx = await contract.donate(numericCampaignId, { value: valueWei });
+      // 4. Gas limit fallback to ensure contract execution succeeds
+      let gasLimit: bigint;
+      try {
+        gasLimit = await contract.donate.estimateGas(numericCampaignId, { value: valueWei });
+      } catch (gasErr) {
+        console.warn('Gas estimation fallback used:', gasErr);
+        gasLimit = 350000n;
+      }
 
-      // Wait for transaction block mining confirmation
+      // 5. Explicitly invoke contract.donate(uint256)
+      const tx = await contract.donate(numericCampaignId, {
+        value: valueWei,
+        gasLimit: gasLimit
+      });
+
+      console.log('Transaction broadcasted successfully:', tx.hash);
+
+      // 6. Wait for block mining
       const receipt = await tx.wait();
       const txHash = receipt?.hash || tx.hash;
       const dateStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-      // Update local campaign raised total
-      setCampaigns(prev => 
+      // Update local campaign raised state
+      setCampaigns(prev =>
         prev.map(c => {
           if (c.id === campaignId) {
             return { ...c, raised: c.raised + amountEth };
@@ -653,7 +643,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setTransactions(prev => [newTx, ...prev]);
 
-      // Sync donation with backend API
+      // Sync with MongoDB backend
       try {
         await axiosInstance.post('/donations', {
           campaignId: campaignId,
@@ -662,10 +652,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           transactionHash: txHash
         });
       } catch (backendErr) {
-        console.warn('Backend REST sync warning (WebSocket event listener will also ingest):', backendErr);
+        console.warn('Backend REST sync notice:', backendErr);
       }
 
-      // Refresh actual ETH balance, campaigns, and transactions from blockchain/backend
+      // Refresh balances, campaigns, and transaction ledger
       await refreshBalance(walletAddress);
       await refreshCampaigns();
       await refreshTransactions();
@@ -673,15 +663,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, hash: txHash };
     } catch (err: any) {
       console.error('On-chain donation failed:', err);
-      return { 
-        success: false, 
-        error: err?.reason || err?.message || 'Transaction was cancelled or rejected in MetaMask' 
+      return {
+        success: false,
+        error: err?.reason || err?.message || 'Transaction was cancelled or rejected in MetaMask'
       };
     }
   };
 
   const addMilestoneProof = (campaignId: string, milestoneId: string, proofText: string, proofDocName: string) => {
-    setCampaigns(prev => 
+    setCampaigns(prev =>
       prev.map(c => {
         if (c.id === campaignId) {
           const updatedMilestones = c.milestones.map(m => {
@@ -704,9 +694,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const validateMilestoneProof = async (campaignId: string, milestoneId: string) => {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+    const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 
-    setCampaigns(prev => 
+    setCampaigns(prev =>
       prev.map(c => {
         if (c.id === campaignId) {
           const updatedMilestones = c.milestones.map(m => {
