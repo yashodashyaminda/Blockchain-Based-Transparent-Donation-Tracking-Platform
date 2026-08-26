@@ -7,7 +7,7 @@ import type { Campaign } from '../../context/Web3Context';
 import { Award, AlertTriangle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw, Wallet } from 'lucide-react';
 
 export const NgoDashboard: React.FC = () => {
-  const { addMilestoneProof, isWalletConnected, walletAddress, bindWalletToProfile, refreshCampaigns } = useWeb3();
+  const { addMilestoneProof, isWalletConnected, walletAddress, connectWallet, disconnectWallet, refreshCampaigns } = useWeb3();
   const { user, login } = useAuth();
 
   const isVerified = user?.isVerified || false;
@@ -191,7 +191,13 @@ export const NgoDashboard: React.FC = () => {
       formData.append('campaignId', selectedCampaignId);
       formData.append('milestonePhase', milestonePhase);
       formData.append('amountRequested', amountRequested);
-      formData.append('title', proofText); // Serves as title in proof model schema
+      formData.append('title', proofText);
+      
+      const activeWallet = (isWalletConnected && walletAddress ? walletAddress : user?.walletAddress || '').toLowerCase();
+      if (activeWallet) {
+        formData.append('ngoWallet', activeWallet);
+      }
+      
       formData.append('file', selectedFile);
 
       setProofUploadProgress(50);
@@ -376,7 +382,22 @@ export const NgoDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Account: <span className="font-semibold text-slate-800">{user?.name || 'My NGO Hub'}</span> ({user?.email || 'ngo@email.com'}) • Bound NGO Wallet: <span className="font-mono text-slate-700 font-semibold">{walletAddress || user?.walletAddress || 'Unbound'}</span>
+                Account: <span className="font-semibold text-slate-800">{user?.name || 'My NGO Hub'}</span> ({user?.email || 'ngo@email.com'})
+                {isWalletConnected && (
+                  <>
+                    {' • '}
+                    Bound NGO Wallet: <span className="font-mono text-slate-800 font-bold bg-white px-1.5 py-0.5 rounded border border-slate-200" title={walletAddress || user?.walletAddress}>
+                      {(walletAddress || user?.walletAddress || '').slice(0, 6)}...{(walletAddress || user?.walletAddress || '').slice(-4)}
+                    </span>
+                    <button
+                      onClick={disconnectWallet}
+                      className="ml-2 font-bold text-red-500 hover:text-red-700 hover:underline text-[11px] cursor-pointer inline-flex items-center gap-0.5"
+                      title="Disconnect MetaMask Wallet"
+                    >
+                      (Disconnect)
+                    </button>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -429,7 +450,7 @@ export const NgoDashboard: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={() => bindWalletToProfile()}
+              onClick={connectWallet}
               className="px-6 py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blue-hover text-white font-heading text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-lg glow-blue shrink-0 cursor-pointer flex items-center justify-center gap-2"
             >
               <Wallet size={16} />
@@ -582,18 +603,20 @@ export const NgoDashboard: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleMilestoneProofSubmit} className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1.5" title={!isWalletConnected ? "Connect wallet firstly" : undefined}>
                     <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Select Campaign</label>
                     <select
                       required
-                      disabled={!isVerified}
+                      disabled={!isVerified || !isWalletConnected}
                       value={selectedCampaignId}
                       onChange={(e) => {
                         setSelectedCampaignId(e.target.value);
                       }}
-                      className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value="">-- Choose Campaign --</option>
+                      <option value="">
+                        {!isWalletConnected ? '-- Connect Wallet Firstly --' : '-- Choose Campaign --'}
+                      </option>
                       {myCampaigns.map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
@@ -601,14 +624,14 @@ export const NgoDashboard: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5" title={!isWalletConnected ? "Connect wallet firstly" : undefined}>
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Target Milestone Phase</label>
                       <select
                         required
-                        disabled={!isVerified || !selectedCampaignId}
+                        disabled={!isVerified || !isWalletConnected || !selectedCampaignId}
                         value={milestonePhase}
                         onChange={(e) => setMilestonePhase(e.target.value)}
-                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:opacity-50"
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <option value="Phase 1: Initial Allocation">Phase 1: Initial Allocation</option>
                         <option value="Phase 2: Intermediate Progress">Phase 2: Intermediate Progress</option>
@@ -617,22 +640,22 @@ export const NgoDashboard: React.FC = () => {
                       </select>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5" title={!isWalletConnected ? "Connect wallet firstly" : undefined}>
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Requested Amount ($ USD)</label>
                       <input
                         type="number"
                         required
                         min="0"
-                        disabled={!isVerified || !selectedCampaignId}
+                        disabled={!isVerified || !isWalletConnected || !selectedCampaignId}
                         placeholder="e.g. 5000"
                         value={amountRequested}
                         onChange={(e) => setAmountRequested(e.target.value)}
-                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:opacity-50"
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1.5" title={!isWalletConnected ? "Connect wallet firstly" : undefined}>
                     <div className="flex justify-between items-center">
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Proof Evidence Details</label>
                       <span className="text-[9px] text-slate-400 font-medium">{proofText.length}/100</span>
@@ -641,24 +664,28 @@ export const NgoDashboard: React.FC = () => {
                       required
                       rows={3}
                       maxLength={100}
-                      disabled={!isVerified || !selectedCampaignId}
+                      disabled={!isVerified || !isWalletConnected || !selectedCampaignId}
                       placeholder="Describe work completed, lists items purchased, and details milestones reached (max 100 chars)..."
                       value={proofText}
                       onChange={(e) => setProofText(e.target.value)}
-                      className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white resize-none disabled:opacity-50"
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white resize-none disabled:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1.5" title={!isWalletConnected ? "Connect wallet firstly" : undefined}>
                     <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Upload Receipts / Document Proof</label>
 
                     <div
-                      onClick={triggerProofUpload}
-                      className={`border border-dashed rounded-xl p-4 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-100/50 transition-colors duration-200 ${!selectedCampaignId
-                          ? 'opacity-40 pointer-events-none bg-slate-100/50 border-slate-200'
+                      onClick={() => {
+                        if (isVerified && isWalletConnected && selectedCampaignId) {
+                          triggerProofUpload();
+                        }
+                      }}
+                      className={`border border-dashed rounded-xl p-4 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 transition-colors duration-200 ${!isVerified || !isWalletConnected || !selectedCampaignId
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100/50 border-slate-200'
                           : proofUploadState === 'completed'
-                            ? 'border-milestone-green bg-emerald-50/10'
-                            : 'border-slate-200'
+                            ? 'border-milestone-green bg-emerald-50/10 cursor-pointer'
+                            : 'border-slate-200 hover:bg-slate-100/50 cursor-pointer'
                         }`}
                     >
                       <input
@@ -707,10 +734,16 @@ export const NgoDashboard: React.FC = () => {
 
                   <button
                     type="submit"
-                    disabled={!isVerified || !selectedCampaignId || !milestonePhase || !amountRequested || proofUploadState !== 'completed' || proofSubmittedSuccess}
+                    disabled={!isVerified || !isWalletConnected || !selectedCampaignId || !milestonePhase || !amountRequested || proofUploadState !== 'completed' || proofSubmittedSuccess}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-milestone-green shadow-md transition-all duration-300 cursor-pointer disabled:bg-slate-400 disabled:cursor-not-allowed"
+                    title={!isWalletConnected ? "Connect wallet firstly" : undefined}
                   >
-                    {proofSubmittedSuccess ? (
+                    {!isWalletConnected ? (
+                      <>
+                        <Wallet size={14} />
+                        <span>Connect Wallet Firstly</span>
+                      </>
+                    ) : proofSubmittedSuccess ? (
                       <>
                         <CheckCircle size={14} className="text-emerald-300" />
                         <span>Proof Dispatched to System Auditors</span>

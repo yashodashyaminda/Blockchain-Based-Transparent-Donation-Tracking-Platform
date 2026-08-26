@@ -8,8 +8,8 @@ const { uploadFileToIPFS } = require('../services/ipfsService');
  * @access  Private (NGO owning the campaign only)
  */
 exports.createProof = async (req, res) => {
-  // අලුත් fields දෙකත් මෙතනින් අල්ලගන්නවා (milestonePhase, amountRequested)
-  const { campaignId, title, milestonePhase, amountRequested } = req.body;
+  const { campaignId, title, milestonePhase, amountRequested, ngoWallet, walletAddress } = req.body;
+  const finalNgoWallet = (ngoWallet || walletAddress || req.user.walletAddress || '').toLowerCase().trim();
 
   try {
     // 1. Validate required text fields before IPFS upload
@@ -56,13 +56,14 @@ exports.createProof = async (req, res) => {
     // 6. Upload document file to IPFS and retrieve hash CID
     const ipfsCID = await uploadFileToIPFS(req.file);
 
-    // 7. Create proof document record with IPFS CID and new fields in MongoDB
+    // 7. Create proof document record with IPFS CID, ngoWallet, and milestone fields in MongoDB
     const proof = await Proof.create({
       campaignId,
       ngoId: req.user._id,
+      ngoWallet: finalNgoWallet,
       title,
-      milestonePhase,    // අලුතින් ආපු එක
-      amountRequested,   // අලුතින් ආපු එක
+      milestonePhase,
+      amountRequested,
       ipfsCID,
       isApproved: false,
     });

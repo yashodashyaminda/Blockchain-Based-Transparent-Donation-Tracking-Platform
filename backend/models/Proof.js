@@ -12,6 +12,11 @@ const ProofSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Please specify the author NGO uploading this proof file'],
     },
+    ngoWallet: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
     milestonePhase: {
       type: String,
       required: [true, 'Please select the target milestone phase'],

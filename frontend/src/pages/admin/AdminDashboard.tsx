@@ -7,7 +7,7 @@ import type { Campaign } from '../../context/Web3Context';
 import { ShieldCheck, Users, Wallet, BarChart3, Edit3, Trash2, CheckCircle2, FileSearch, ArrowRight, ShieldAlert, Plus, AlertCircle, RefreshCw, Building, Phone, Mail, FileText } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const { verifyNGO, validateMilestoneProof, isWalletConnected, walletAddress, connectWallet } = useWeb3();
+  const { verifyNGO, validateMilestoneProof, isWalletConnected, walletAddress, connectWallet, disconnectWallet } = useWeb3();
   const { user } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'crud' | 'metrics'>('approvals');
 
@@ -220,6 +220,7 @@ export const AdminDashboard: React.FC = () => {
       proofText: p.title || 'No description provided.',
       proofDoc: p.ipfsCID ? `IPFS CID: ${p.ipfsCID.substring(0, 15)}...` : null,
       ipfsCID: p.ipfsCID,
+      ngoWallet: p.ngoWallet || '',
     }
   }));
 
@@ -419,7 +420,22 @@ export const AdminDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Admin: <span className="font-semibold text-slate-800">{user?.name || 'System Admin'}</span> ({user?.email || 'admin@email.com'}) • Protocol Address: <span className="font-mono text-slate-600">{walletAddress || 'Unbound'}</span>
+                Admin: <span className="font-semibold text-slate-800">{user?.name || 'System Admin'}</span> ({user?.email || 'admin@email.com'})
+                {isWalletConnected && walletAddress && (
+                  <>
+                    {' • '}
+                    Protocol Address: <span className="font-mono text-slate-800 font-bold bg-white px-1.5 py-0.5 rounded border border-slate-200" title={walletAddress}>
+                      {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                    </span>
+                    <button
+                      onClick={disconnectWallet}
+                      className="ml-2 font-bold text-red-500 hover:text-red-700 hover:underline text-[11px] cursor-pointer inline-flex items-center gap-0.5"
+                      title="Disconnect MetaMask Wallet"
+                    >
+                      (Disconnect)
+                    </button>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -683,7 +699,14 @@ export const AdminDashboard: React.FC = () => {
 
                           {/* NGO Evidence Report Box */}
                           <div className="text-xs bg-white border border-slate-100 p-3.5 rounded-xl leading-relaxed text-slate-500">
-                            <span className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">NGO Evidence Report</span>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">NGO Evidence Report</span>
+                              {selectedRelease.milestone.ngoWallet && (
+                                <span className="text-[9px] font-mono font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title={selectedRelease.milestone.ngoWallet}>
+                                  Wallet: {selectedRelease.milestone.ngoWallet.slice(0, 6)}...{selectedRelease.milestone.ngoWallet.slice(-4)}
+                                </span>
+                              )}
+                            </div>
                             <p className="font-semibold text-slate-700 whitespace-pre-wrap">{selectedRelease.milestone.proofText}</p>
 
                             {selectedRelease.milestone.proofDoc && (
@@ -707,10 +730,16 @@ export const AdminDashboard: React.FC = () => {
                             {/* Verify & Release Funds Button */}
                             <button
                               onClick={() => handleVerifyMilestone(selectedRelease.campaign.id, selectedRelease.milestone.id)}
-                              disabled={isContractExecuting}
+                              disabled={isContractExecuting || !isWalletConnected}
+                              title={!isWalletConnected ? "Please connect your Admin Web3 wallet to verify and release milestone funds" : undefined}
                               className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-950 hover:bg-emerald-600 disabled:bg-slate-400 disabled:cursor-not-allowed shadow-sm transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5"
                             >
-                              {verifyingMilestoneId === selectedRelease.milestone.id && verifyingCampaignId === selectedRelease.campaign.id && isContractExecuting ? (
+                              {!isWalletConnected ? (
+                                <>
+                                  <Wallet size={12} />
+                                  <span>Connect Admin Wallet to Release</span>
+                                </>
+                              ) : verifyingMilestoneId === selectedRelease.milestone.id && verifyingCampaignId === selectedRelease.campaign.id && isContractExecuting ? (
                                 <>
                                   <RefreshCw size={12} className="animate-spin" />
                                   <span>Releasing...</span>
