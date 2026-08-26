@@ -41,7 +41,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
   // Fund Map active project selection
   const [mapCampaignId, setMapCampaignId] = useState<string>('');
-  const [activeMilestoneNode, setActiveMilestoneNode] = useState<any>(null);
+  const [selectedNodeIndex, setSelectedNodeIndex] = useState<number>(0);
 
   // Set default map campaign ID once campaigns are loaded
   useEffect(() => {
@@ -83,6 +83,141 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     if (!addr) return 'Not Connected';
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
+
+  // Construct 4-stage milestones for selectedMapCampaign
+  const targetVal = selectedMapCampaign?.target || 1.0;
+  const quarterVal = parseFloat((targetVal * 0.25).toFixed(4));
+
+  const mapPhases = [
+    {
+      id: 'm1',
+      title: 'Phase 1: Initial Allocation',
+      amount: quarterVal,
+      status: 'Released',
+      proofText: 'Phase 1 baseline site assessment, supply procurement, and initial infrastructure setup.',
+      transactionHash: '0x73fc54df9e0b88f958bfbe2ba258b73b309d243e69b8ea727adeec27028aef19'
+    },
+    {
+      id: 'm2',
+      title: 'Phase 2: Intermediate Progress',
+      amount: quarterVal,
+      status: 'Approved',
+      proofText: 'Mid-term milestone deployment, on-site audit verification, and equipment distribution.',
+      transactionHash: '0x881ce4f7ba61997f412f09eb12a61f9c31fbaf8fda2ce3c3a8db8dbe03606d67'
+    },
+    {
+      id: 'm3',
+      title: 'Phase 3: Final Completion',
+      amount: quarterVal,
+      status: 'Pending',
+      proofText: 'Final execution stage awaiting NGO field audit submission.',
+      transactionHash: ''
+    },
+    {
+      id: 'm4',
+      title: 'Phase 4: Emergency / Unplanned Expense',
+      amount: quarterVal,
+      status: 'Pending',
+      proofText: 'Contingency reserve locked in escrow for unforeseen field adjustments.',
+      transactionHash: ''
+    }
+  ];
+
+  // Dynamic FIFO Calculation for selectedNodeIndex against campaign donations & payouts
+  const getFifoAuditData = (nodeIdx: number) => {
+    if (!isWalletConnected || !walletAddress || !selectedMapCampaign) {
+      return {
+        allocatedAmount: 0,
+        remainingEscrow: 0,
+        badgeStatus: 'Locked in Escrow'
+      };
+    }
+
+    const campaignDonations = transactions
+      .filter(t => t.campaignId === selectedMapCampaign.id)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const donorDonations = campaignDonations.filter(
+      t => t.donorAddress && t.donorAddress.toLowerCase() === walletAddress.toLowerCase()
+    );
+    const donorTotalContribution = donorDonations.reduce((acc, curr) => acc + curr.amount, 0);
+
+    if (donorTotalContribution === 0) {
+      return {
+        allocatedAmount: 0,
+        remainingEscrow: 0,
+        badgeStatus: 'Locked in Escrow'
+      };
+    }
+
+    let cumulativeMs = 0;
+    const msBounds = mapPhases.map(m => {
+      const start = cumulativeMs;
+      const end = start + m.amount;
+      cumulativeMs = end;
+      return { start, end, amount: m.amount };
+    });
+
+    let cumulativePool = 0;
+    const donorIntervals: { start: number; end: number; isConnectedDonor: boolean }[] = [];
+
+    campaignDonations.forEach(d => {
+      const start = cumulativePool;
+      const end = start + d.amount;
+      cumulativePool = end;
+      donorIntervals.push({
+        start,
+        end,
+        isConnectedDonor: Boolean(d.donorAddress && d.donorAddress.toLowerCase() === walletAddress.toLowerCase())
+      });
+    });
+
+    const targetMs = msBounds[nodeIdx] || { start: nodeIdx * quarterVal, end: (nodeIdx + 1) * quarterVal };
+    let allocatedAmount = 0;
+
+    donorIntervals.forEach(interval => {
+      if (interval.isConnectedDonor) {
+        const overlapStart = Math.max(interval.start, targetMs.start);
+        const overlapEnd = Math.min(interval.end, targetMs.end);
+        const overlap = Math.max(0, overlapEnd - overlapStart);
+        allocatedAmount += overlap;
+      }
+    });
+
+    let cumulativeAllocatedUpToNode = 0;
+    for (let k = 0; k <= nodeIdx; k++) {
+      const ms = msBounds[k] || { start: k * quarterVal, end: (k + 1) * quarterVal };
+      donorIntervals.forEach(interval => {
+        if (interval.isConnectedDonor) {
+          const overlapStart = Math.max(interval.start, ms.start);
+          const overlapEnd = Math.min(interval.end, ms.end);
+          const overlap = Math.max(0, overlapEnd - overlapStart);
+          cumulativeAllocatedUpToNode += overlap;
+        }
+      });
+    }
+
+    const remainingEscrow = Math.max(0, donorTotalContribution - cumulativeAllocatedUpToNode);
+
+    let badgeStatus = 'Locked in Escrow';
+    if (allocatedAmount > 0) {
+      if (remainingEscrow === 0) {
+        badgeStatus = 'Fully Utilized';
+      } else {
+        badgeStatus = 'Partially Utilized';
+      }
+    }
+
+    return {
+      allocatedAmount,
+      remainingEscrow,
+      badgeStatus
+    };
+  };
+
+  const activeFifoData = getFifoAuditData(selectedNodeIndex);
+  const activeNode = mapPhases[selectedNodeIndex];
+  const ngoWalletAddress = selectedMapCampaign?.ngoId || '0x70997970c51812dc3a010c7d01b50e0d17dc79c8';
 
   return (
     <div className="min-h-screen bg-slate-50 pt-28 pb-16 px-6 md:px-12 relative">
@@ -223,6 +358,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                     </div>
                   ) : (
                     filteredCampaigns.map(c => {
+                      const isGoalReached = c.raised >= c.target || (c as any).status === 'Funded' || (c as any).status === 'Completed';
                       const percent = Math.min(100, Math.round((c.raised / c.target) * 100));
                       return (
                         <div key={c.id} className="group relative bg-white rounded-2xl border border-slate-200 hover:border-blue-400 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
@@ -264,16 +400,26 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                               </div>
                               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div
-                                  className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                                  className={`h-full transition-all duration-500 ${isGoalReached ? 'bg-emerald-500' : 'bg-blue-600'}`}
                                   style={{ width: `${percent}%` }}
                                 />
                               </div>
                               <button
-                                onClick={() => setSelectedCampaign(c)}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold text-white bg-slate-900 hover:bg-blue-600 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer whitespace-nowrap"
+                                onClick={() => {
+                                  if (!isGoalReached) {
+                                    setSelectedCampaign(c);
+                                  }
+                                }}
+                                disabled={isGoalReached}
+                                title={isGoalReached ? "Campaign target goal has been fully reached!" : undefined}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold shadow-sm transition-all duration-200 whitespace-nowrap ${
+                                  isGoalReached
+                                    ? 'opacity-60 cursor-not-allowed bg-slate-600 hover:bg-slate-600 text-white shadow-none'
+                                    : 'text-white bg-slate-900 hover:bg-blue-600 hover:shadow-md cursor-pointer'
+                                }`}
                               >
-                                <span>DONATE</span>
-                                <ArrowRight size={10} />
+                                <span>{isGoalReached ? 'Goal Reached 🎉' : 'DONATE'}</span>
+                                {!isGoalReached && <ArrowRight size={10} />}
                               </button>
                             </div>
                           </div>
@@ -295,6 +441,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 transition={{ duration: 0.25 }}
                 className="grid lg:grid-cols-12 gap-8"
               >
+                {/* Proposal selection sidebar */}
                 <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-100 p-6 flex flex-col gap-4 shadow-sm h-fit">
                   <h3 className="font-heading font-extrabold text-sm text-slate-900">Active Proposals Ledger</h3>
                   <div className="flex flex-col gap-2.5">
@@ -303,12 +450,13 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                         key={c.id}
                         onClick={() => {
                           setMapCampaignId(c.id);
-                          setActiveMilestoneNode(null);
+                          setSelectedNodeIndex(0);
                         }}
-                        className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all duration-200 cursor-pointer ${mapCampaignId === c.id
-                          ? 'bg-trust-blue-light border-trust-blue text-trust-blue shadow-sm'
-                          : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
-                          }`}
+                        className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all duration-200 cursor-pointer ${
+                          mapCampaignId === c.id
+                            ? 'bg-trust-blue-light border-trust-blue text-trust-blue shadow-sm'
+                            : 'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-600'
+                        }`}
                       >
                         <span className="block font-bold text-slate-900 mb-0.5">{c.name}</span>
                         <span className="text-[10px] text-slate-500">NGO Partner: {c.ngoName}</span>
@@ -317,33 +465,31 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                   </div>
                 </div>
 
-                <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-8 shadow-sm justify-between">
+                {/* 4-Stage Connected Milestone Map & Selected Node Audit Cards */}
+                <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm justify-between">
                   <div className="flex items-start justify-between border-b border-slate-100 pb-4">
                     <div>
                       <h3 className="font-heading font-extrabold text-lg text-slate-900">{selectedMapCampaign?.name}</h3>
-                      <p className="text-xs text-slate-500 mt-1">Escrow Milestone Auditing Map. Select nodes to view certificates.</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        4-Stage Escrow Milestone Auditing Map. Click any stage node to inspect Card A (FIFO Allocation) & Card B (NGO Payout).
+                      </p>
                     </div>
-                    <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200">
+                    <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200 shrink-0">
                       Smart Contract Escrow
                     </span>
                   </div>
 
-                  <div className="relative py-12 flex justify-between items-center px-4 overflow-x-auto min-h-[220px]">
-                    <div className="absolute left-[8%] right-[8%] top-[50%] -translate-y-1/2 z-0 h-1">
+                  {/* 4-STAGE CONNECTED MILESTONE NODE MAP */}
+                  <div className="relative py-8 flex justify-between items-center px-4 overflow-x-auto min-h-[200px]">
+                    <div className="absolute left-[8%] right-[8%] top-[40%] -translate-y-1/2 z-0 h-1">
                       <svg className="w-full h-2 overflow-visible" fill="none">
-                        <line
-                          x1="0" y1="2" x2="100%" y2="2"
-                          stroke="#e2e8f0" strokeWidth="3"
-                        />
-                        <line
-                          x1="0" y1="2" x2="100%" y2="2"
-                          stroke="#2563eb" strokeWidth="3"
-                          className="animate-flow-line"
-                        />
+                        <line x1="0" y1="2" x2="100%" y2="2" stroke="#e2e8f0" strokeWidth="3" />
+                        <line x1="0" y1="2" x2="100%" y2="2" stroke="#2563eb" strokeWidth="3" className="animate-flow-line" />
                       </svg>
                     </div>
 
-                    {selectedMapCampaign?.milestones.map((m, idx) => {
+                    {mapPhases.map((m, idx) => {
+                      const isSelected = selectedNodeIndex === idx;
                       const isReleased = m.status === 'Released';
                       const isApproved = m.status === 'Approved';
 
@@ -351,29 +497,38 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                         <motion.div
                           key={m.id}
                           whileHover={{ scale: 1.05 }}
-                          onClick={() => setActiveMilestoneNode({ ...m, index: idx + 1 })}
-                          className="relative z-10 flex flex-col items-center cursor-pointer select-none group shrink-0 w-28 text-center"
+                          onClick={() => setSelectedNodeIndex(idx)}
+                          className="relative z-10 flex flex-col items-center cursor-pointer select-none group shrink-0 w-36 text-center"
                         >
-                          <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${isReleased
-                            ? 'bg-emerald-500 border-emerald-200 text-white shadow-lg glow-green'
-                            : isApproved
-                              ? 'bg-amber-400 border-amber-200 text-white shadow-lg glow-gold'
-                              : 'bg-white border-slate-200 text-slate-400'
-                            }`}>
+                          <div
+                            className={`w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
+                              isSelected ? 'ring-4 ring-trust-blue/40 scale-110 shadow-xl' : ''
+                            } ${
+                              isReleased
+                                ? 'bg-emerald-500 border-emerald-200 text-white shadow-lg glow-green'
+                                : isApproved
+                                ? 'bg-amber-400 border-amber-200 text-white shadow-lg glow-gold'
+                                : 'bg-white border-slate-200 text-slate-400'
+                            }`}
+                          >
                             {isReleased ? (
-                              <CheckCircle size={20} />
+                              <CheckCircle size={22} />
                             ) : isApproved ? (
-                              <Clock size={20} />
+                              <Clock size={22} />
                             ) : (
-                              <span className="font-heading font-extrabold text-sm">{idx + 1}</span>
+                              <span className="font-heading font-extrabold text-base">{idx + 1}</span>
                             )}
                           </div>
 
                           <div className="mt-3">
-                            <span className="block text-[10px] font-bold text-slate-800 line-clamp-1 group-hover:text-trust-blue">
+                            <span
+                              className={`block text-[11px] font-bold transition-colors line-clamp-1 ${
+                                isSelected ? 'text-trust-blue' : 'text-slate-800 group-hover:text-trust-blue'
+                              }`}
+                            >
                               {m.title}
                             </span>
-                            <span className="block text-[9px] font-semibold text-slate-400 mt-0.5">
+                            <span className="block text-[10px] font-semibold text-slate-400 mt-0.5">
                               {m.amount} ETH
                             </span>
                           </div>
@@ -382,80 +537,97 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                     })}
                   </div>
 
-                  <div className="min-h-[120px]">
-                    <AnimatePresence mode="wait">
-                      {activeMilestoneNode ? (
-                        <motion.div
-                          key={activeMilestoneNode.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] uppercase font-extrabold text-trust-blue tracking-wider">
-                                Milestone Node Phase {activeMilestoneNode.index} Details
-                              </span>
-                              <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-full ${activeMilestoneNode.status === 'Released'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : activeMilestoneNode.status === 'Approved'
-                                  ? 'bg-amber-100 text-amber-700 animate-pulse'
-                                  : 'bg-slate-200 text-slate-600'
-                                }`}>
-                                {activeMilestoneNode.status === 'Released' ? 'Released' : activeMilestoneNode.status === 'Approved' ? 'Pending Admin Audit' : 'Locked Escrow'}
-                              </span>
-                            </div>
-                            <h4 className="font-heading font-bold text-sm text-slate-900 mt-1">{activeMilestoneNode.title}</h4>
-                            <p className="text-xs text-slate-500 mt-2 leading-relaxed max-w-xl">
-                              {activeMilestoneNode.proofText || 'This milestone has not been submitted by the NGO yet. Escrow payout remains locked.'}
-                            </p>
-                          </div>
-
-                          <div className="shrink-0 flex flex-col gap-3 w-full md:w-auto md:text-right">
-                            {/* Total Cost */}
-                            <div>
-                              <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total Milestone Cost</span>
-                              <span className="font-heading font-extrabold text-lg text-slate-800">{activeMilestoneNode.amount} ETH</span>
-                            </div>
-
-                            {/* Your Contribution (FIFO Logic Display) */}
-                            <div className="bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-xl text-left md:text-right">
-                              <span className="block text-[9px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Your Contribution Used</span>
-                              <span className="font-heading font-extrabold text-base text-emerald-500">
-                                {activeMilestoneNode.donorContribution || '0'} ETH
-                              </span>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex flex-col gap-2 mt-1">
-                              {activeMilestoneNode.proofDoc && (
-                                <a
-                                  href="/assets/images/3.png"
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex items-center justify-center md:justify-end gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
-                                >
-                                  <FileText size={12} className="text-slate-500" />
-                                  <span>Inspect Receipt</span>
-                                  <LinkIcon size={10} className="text-slate-400" />
-                                </a>
-                              )}
-                              {activeMilestoneNode.transactionHash && (
-                                <div className="text-[9px] text-slate-400 font-mono select-all truncate max-w-[200px] bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                                  Tx: {activeMilestoneNode.transactionHash}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5">
-                          <AlertCircle size={16} className="text-slate-400" />
-                          <span>Click any milestone bubble above to trace documentation and audit payouts.</span>
+                  {/* SELECTED NODE AUDIT CARDS (STRICTLY CARDS A & B ONLY) */}
+                  <div className="grid md:grid-cols-2 gap-6 pt-2">
+                    {/* CARD A: DONOR'S PERSONAL CONTRIBUTION (FIFO BREAKDOWN) */}
+                    <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-5 shadow-sm">
+                      <div className="flex justify-between items-start gap-2 border-b border-slate-200/80 pb-3">
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-trust-blue">
+                            Card A • Donor Personal Contribution
+                          </span>
+                          <h4 className="font-heading font-extrabold text-sm text-slate-900 mt-0.5">
+                            FIFO Allocation Breakdown
+                          </h4>
                         </div>
-                      )}
-                    </AnimatePresence>
+                        <span
+                          className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                            activeFifoData.badgeStatus === 'Fully Utilized'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : activeFifoData.badgeStatus === 'Partially Utilized'
+                              ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                          }`}
+                        >
+                          {activeFifoData.badgeStatus}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+                          <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                            Allocated from Your Donation
+                          </span>
+                          <span className="font-heading font-extrabold text-lg text-emerald-600">
+                            {activeFifoData.allocatedAmount.toFixed(4)} ETH
+                          </span>
+                        </div>
+
+                        <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+                          <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                            Remaining Balance in Escrow
+                          </span>
+                          <span className="font-heading font-extrabold text-lg text-slate-800">
+                            {activeFifoData.remainingEscrow.toFixed(4)} ETH
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CARD B: NGO PAYOUT & ON-CHAIN SETTLEMENT */}
+                    <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-5 shadow-sm">
+                      <div className="flex justify-between items-start gap-2 border-b border-slate-200/80 pb-3">
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">
+                            Card B • NGO On-Chain Payout
+                          </span>
+                          <h4 className="font-heading font-extrabold text-sm text-slate-900 mt-0.5">
+                            Settlement Information
+                          </h4>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-200 text-slate-700">
+                          {activeNode.status === 'Released' ? 'Settled On-Chain' : 'Escrow Pending'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-3.5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-semibold">NGO Recipient Wallet</span>
+                          <span
+                            className="font-mono text-slate-800 font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px]"
+                            title={selectedMapCampaign?.ngoName || 'Verified NGO'}
+                          >
+                            {ngoWalletAddress.length > 12 ? `${ngoWalletAddress.slice(0, 6)}...${ngoWalletAddress.slice(-4)}` : ngoWalletAddress}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-semibold">Blockchain Payout Transaction Hash</span>
+                          {activeNode.transactionHash ? (
+                            <span
+                              className="font-mono text-trust-blue font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px] truncate max-w-[180px]"
+                              title={activeNode.transactionHash}
+                            >
+                              {activeNode.transactionHash.slice(0, 8)}...{activeNode.transactionHash.slice(-6)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2 py-0.5 rounded">
+                              Pending Escrow Release
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </motion.div>

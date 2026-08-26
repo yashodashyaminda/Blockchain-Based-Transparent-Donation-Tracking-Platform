@@ -30,6 +30,10 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
   const currentBalance = parseFloat(walletBalance) || 0;
   const hasEnoughBalance = currentBalance >= totalEthRequired;
 
+  const isGoalReached = selectedCampaign
+    ? selectedCampaign.raised >= selectedCampaign.target || (selectedCampaign as any).status === 'Funded' || (selectedCampaign as any).status === 'Completed'
+    : false;
+
   const handleConnectWallet = async () => {
     setErrorMessage(null);
     await connectWallet();
@@ -39,7 +43,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!selectedCampaign || numericAmount <= 0) return;
+    if (!selectedCampaign || numericAmount <= 0 || isGoalReached) return;
 
     if (!isWalletConnected) {
       await connectWallet();
@@ -105,6 +109,13 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
 
             <form onSubmit={handleDonationSubmit} className="flex flex-col gap-5">
 
+              {isGoalReached && (
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                  <CheckCircle size={16} className="text-emerald-600 shrink-0" />
+                  <span className="font-bold">Goal Reached 🎉 This campaign has fully met its target goal. Overfunding is disabled.</span>
+                </div>
+              )}
+
               {/* Donation Amount Input in ETH */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Donation Amount (ETH)</label>
@@ -114,13 +125,13 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                     required
                     step="0.0001"
                     min="0.0001"
-                    disabled={isDonating || donationSuccess}
+                    disabled={isGoalReached || isDonating || donationSuccess}
                     value={donationAmount}
                     onChange={(e) => {
                       setDonationAmount(e.target.value);
                       setErrorMessage(null);
                     }}
-                    className="w-full px-4 py-3 pr-16 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue font-heading font-bold text-lg text-slate-900 bg-white"
+                    className="w-full px-4 py-3 pr-16 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue font-heading font-bold text-lg text-slate-900 bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 font-heading font-extrabold text-sm text-slate-400">ETH</span>
                 </div>
@@ -163,7 +174,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                 </div>
               )}
 
-              {!isWalletConnected && !hasEnoughBalance && (
+              {!isWalletConnected && !hasEnoughBalance && !isGoalReached && (
                 <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
                   <Wallet size={16} className="text-amber-600 shrink-0" />
                   <span>Connect your MetaMask wallet to check ETH balance and proceed with donation.</span>
@@ -171,7 +182,16 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
               )}
 
               {/* Action Button: Connect Wallet OR Confirm Transaction */}
-              {!isWalletConnected ? (
+              {isGoalReached ? (
+                <button
+                  type="button"
+                  disabled={true}
+                  className="w-full py-4 rounded-xl font-heading text-xs font-bold text-white opacity-60 cursor-not-allowed bg-slate-600 shadow-none flex items-center justify-center gap-2"
+                >
+                  <CheckCircle size={16} />
+                  <span>Goal Reached 🎉</span>
+                </button>
+              ) : !isWalletConnected ? (
                 <button
                   type="button"
                   onClick={handleConnectWallet}
@@ -211,7 +231,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
               )}
 
               {/* Insufficient balance message under button if disabled */}
-              {isWalletConnected && !hasEnoughBalance && (
+              {isWalletConnected && !hasEnoughBalance && !isGoalReached && (
                 <p className="text-[11px] text-center font-bold text-red-600 bg-red-50 py-2 rounded-lg border border-red-200">
                   ⚠️ Insufficient ETH balance to cover total amount ({totalEthRequired.toFixed(4)} ETH)
                 </p>

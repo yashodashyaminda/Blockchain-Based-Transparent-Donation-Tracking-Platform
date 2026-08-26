@@ -303,6 +303,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                 </div>
               ) : (
                 visibleCampaigns.map((campaign) => {
+                  const isGoalReached = campaign.raised >= campaign.target || (campaign as any).status === 'Funded' || (campaign as any).status === 'Completed';
                   const percentage = Math.min(100, Math.round((campaign.raised / campaign.target) * 100));
                   return (
                     <motion.div
@@ -348,22 +349,34 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                           </div>
                           <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-blue-600 rounded-full"
-                              style={{ width: `${percentage}%` }}
+                              className={`h-full transition-all duration-500 ${isGoalReached ? 'bg-emerald-500' : 'bg-blue-600'}`}
+                              style={{ width: `${Math.min(percentage, 100)}%` }}
                             />
                           </div>
                           <button
-                            onClick={() => handleDonateNow(campaign.id)}
-                            disabled={user?.role === 'NGO' || user?.role === 'Admin'}
-                            title={user?.role === 'NGO' || user?.role === 'Admin' ? "Only Donors can contribute to campaigns." : undefined}
+                            onClick={() => {
+                              if (!isGoalReached) {
+                                handleDonateNow(campaign.id);
+                              }
+                            }}
+                            disabled={isGoalReached || user?.role === 'NGO' || user?.role === 'Admin'}
+                            title={
+                              isGoalReached
+                                ? "Campaign target goal has been fully reached!"
+                                : user?.role === 'NGO' || user?.role === 'Admin'
+                                ? "Only Donors can contribute to campaigns."
+                                : undefined
+                            }
                             className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold shadow-sm transition-all duration-200 whitespace-nowrap ${
-                              user?.role === 'NGO' || user?.role === 'Admin'
+                              isGoalReached
+                                ? 'opacity-60 cursor-not-allowed bg-slate-600 hover:bg-slate-600 text-white shadow-none'
+                                : user?.role === 'NGO' || user?.role === 'Admin'
                                 ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none'
                                 : 'text-white bg-slate-900 hover:bg-blue-600 hover:shadow-md cursor-pointer'
                             }`}
                           >
-                            <span>Donate Now</span>
-                            <ArrowRight size={10} />
+                            <span>{isGoalReached ? 'Goal Reached 🎉' : 'Donate Now'}</span>
+                            {!isGoalReached && <ArrowRight size={10} />}
                           </button>
                         </div>
                       </div>
