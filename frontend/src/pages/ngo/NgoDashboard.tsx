@@ -4,7 +4,7 @@ import { useWeb3 } from '../../context/Web3Context';
 import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../utils/axiosInstance';
 import type { Campaign } from '../../context/Web3Context';
-import { Award, AlertTriangle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw, Wallet } from 'lucide-react';
+import { Award, AlertTriangle, AlertCircle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw, Wallet } from 'lucide-react';
 
 export const NgoDashboard: React.FC = () => {
   const { addMilestoneProof, isWalletConnected, walletAddress, connectWallet, disconnectWallet, refreshCampaigns } = useWeb3();
@@ -43,6 +43,7 @@ export const NgoDashboard: React.FC = () => {
 
   const [ngoProofs, setNgoProofs] = useState<any[]>([]);
   const [isRejectedPopupOpen, setIsRejectedPopupOpen] = useState(false);
+  const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
 
   const fetchProofsData = async () => {
     try {
@@ -238,7 +239,8 @@ export const NgoDashboard: React.FC = () => {
       }
     } catch (err: any) {
       setProofUploadState('completed');
-      alert(err.response?.data?.message || 'Failed to upload proof document');
+      const msg = err.response?.data?.message || 'Failed to upload proof document';
+      setErrorModalMessage(msg);
     }
   };
 
@@ -491,14 +493,21 @@ export const NgoDashboard: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Target Fund Cap ($)</label>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Target Fund Cap (ETH)</label>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         required
                         disabled={!isVerified}
                         placeholder="e.g. 5000"
+                        maxLength={10}
                         value={projTarget}
-                        onChange={(e) => setProjTarget(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val.length <= 10 && /^[0-9]*\.?[0-9]*$/.test(val)) {
+                            setProjTarget(val);
+                          }
+                        }}
                         className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white"
                       />
                     </div>
@@ -626,30 +635,54 @@ export const NgoDashboard: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5" title={!isWalletConnected ? "Connect wallet firstly" : undefined}>
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Target Milestone Phase</label>
-                      <select
-                        required
-                        disabled={!isVerified || !isWalletConnected || !selectedCampaignId}
-                        value={milestonePhase}
-                        onChange={(e) => setMilestonePhase(e.target.value)}
-                        className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        <option value="Phase 1: Initial Allocation">Phase 1: Initial Allocation</option>
-                        <option value="Phase 2: Intermediate Progress">Phase 2: Intermediate Progress</option>
-                        <option value="Phase 3: Final Completion">Phase 3: Final Completion</option>
-                        <option value="Emergency / Unplanned Expense">Emergency / Unplanned Expense</option>
-                      </select>
+                      {(() => {
+                        const selectedCampaignProofs = ngoProofs.filter((p: any) =>
+                          (p.campaignId?._id === selectedCampaignId || p.campaignId === selectedCampaignId) && !p.isRejected
+                        );
+                        const hasPhase1Submitted = selectedCampaignProofs.some((p: any) =>
+                          p.milestonePhase && p.milestonePhase.toLowerCase().includes('phase 1')
+                        );
+                        const hasPhase2Submitted = selectedCampaignProofs.some((p: any) =>
+                          p.milestonePhase && p.milestonePhase.toLowerCase().includes('phase 2')
+                        );
+
+                        return (
+                          <select
+                            required
+                            disabled={!isVerified || !isWalletConnected || !selectedCampaignId}
+                            value={milestonePhase}
+                            onChange={(e) => setMilestonePhase(e.target.value)}
+                            className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            <option value="Phase 1: Initial Allocation">Phase 1: Initial Allocation</option>
+                            <option value="Phase 2: Intermediate Progress" disabled={!hasPhase1Submitted}>
+                              Phase 2: Intermediate Progress {!hasPhase1Submitted ? '(Must complete Phase 1 first)' : ''}
+                            </option>
+                            <option value="Phase 3: Final Completion" disabled={!hasPhase1Submitted || !hasPhase2Submitted}>
+                              Phase 3: Final Completion {!hasPhase1Submitted || !hasPhase2Submitted ? '(Must complete Phase 1 & 2 first)' : ''}
+                            </option>
+                            <option value="Emergency / Unplanned Expense">Emergency / Unplanned Expense (Anytime)</option>
+                          </select>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex flex-col gap-1.5" title={!isWalletConnected ? "Connect wallet firstly" : undefined}>
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Requested Amount ($ USD)</label>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Requested Amount (ETH)</label>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         required
-                        min="0"
                         disabled={!isVerified || !isWalletConnected || !selectedCampaignId}
                         placeholder="e.g. 5000"
+                        maxLength={10}
                         value={amountRequested}
-                        onChange={(e) => setAmountRequested(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val.length <= 10 && /^[0-9]*\.?[0-9]*$/.test(val)) {
+                            setAmountRequested(val);
+                          }
+                        }}
                         className="px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue text-xs transition-all duration-200 bg-white disabled:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </div>
@@ -902,6 +935,38 @@ export const NgoDashboard: React.FC = () => {
                 className="w-full py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-heading text-xs font-bold transition-colors duration-200 cursor-pointer text-center"
               >
                 Close Viewer
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* SYSTEM MODAL POPUP FOR VALIDATION WARNINGS & ERRORS */}
+      <AnimatePresence>
+        {errorModalMessage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="max-w-md w-full bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center gap-5 relative z-50"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 shrink-0">
+                <AlertCircle size={28} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <h3 className="font-heading font-extrabold text-lg text-slate-900">
+                  Validation Warning
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                  {errorModalMessage}
+                </p>
+              </div>
+              <button
+                onClick={() => setErrorModalMessage(null)}
+                className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-heading text-xs font-bold uppercase tracking-wider transition-all duration-200 shadow-md cursor-pointer"
+              >
+                Understood
               </button>
             </motion.div>
           </div>

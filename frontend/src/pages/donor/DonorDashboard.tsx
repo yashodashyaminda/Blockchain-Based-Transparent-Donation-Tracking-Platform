@@ -104,15 +104,27 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   // Construct 4-stage connected milestones linked to real NGO proof requests
   const targetVal = selectedMapCampaign?.target || 1.0;
 
+  // Rule 1: Phase 3 Dynamic Cap = Target - (Phase 1 + Phase 2 + Phase 4)
+  const getPhaseClaimedTotal = (phaseTitle: string) => {
+    return campaignProofs
+      .filter((p: any) => p.milestonePhase && p.milestonePhase.toLowerCase().trim() === phaseTitle.toLowerCase().trim() && !p.isRejected)
+      .reduce((sum: number, p: any) => sum + (p.amountRequested || 0), 0);
+  };
+
+  const p1Claimed = getPhaseClaimedTotal('Phase 1: Initial Allocation');
+  const p2Claimed = getPhaseClaimedTotal('Phase 2: Intermediate Progress');
+  const p4Claimed = getPhaseClaimedTotal('Emergency / Unplanned Expense');
+  const phase3DynamicCap = Math.max(0, targetVal - (p1Claimed + p2Claimed + p4Claimed));
+
   const phaseConfig = [
-    { id: 'm1', title: 'Phase 1: Initial Allocation', capRatio: 0.25 },
-    { id: 'm2', title: 'Phase 2: Intermediate Progress', capRatio: 0.25 },
-    { id: 'm3', title: 'Phase 3: Final Completion', capRatio: 0.50 },
-    { id: 'm4', title: 'Phase 4: Emergency / Unplanned Expense', capRatio: 0.25 },
+    { id: 'm1', title: 'Phase 1: Initial Allocation', capAmount: parseFloat((targetVal * 0.25).toFixed(4)) },
+    { id: 'm2', title: 'Phase 2: Intermediate Progress', capAmount: parseFloat((targetVal * 0.25).toFixed(4)) },
+    { id: 'm3', title: 'Phase 3: Final Completion', capAmount: parseFloat(phase3DynamicCap.toFixed(4)) },
+    { id: 'm4', title: 'Phase 4: Emergency / Unplanned Expense', capAmount: parseFloat((targetVal * 0.25).toFixed(4)) },
   ];
 
   const mapPhases = phaseConfig.map((phase) => {
-    const capAmount = parseFloat((targetVal * phase.capRatio).toFixed(4));
+    const capAmount = phase.capAmount;
 
     // Match proof requests for this phase
     const matchingProofs = campaignProofs.filter((p: any) =>
@@ -519,18 +531,30 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                 </div>
 
                 {/* 4-Stage Connected Milestone Map & Selected Node Audit Cards */}
-                <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm justify-between">
-                  <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-                    <div>
-                      <h3 className="font-heading font-extrabold text-lg text-slate-900">{selectedMapCampaign?.name}</h3>
-                      <p className="text-xs text-slate-500 mt-1">
-                        4-Stage Escrow Milestone Auditing Map. Click any stage node to inspect Card A (FIFO Allocation) & Card B (NGO Payout).
-                      </p>
+                <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm justify-between relative overflow-hidden">
+                  
+                  {/* Subtle Light Blur Overlay ONLY on Smart Contract Escrow Audit Box when disconnected */}
+                  {(!isWalletConnected || !walletAddress) && (
+                    <div className="absolute inset-0 z-30 flex items-center justify-center p-6 bg-slate-900/5 backdrop-blur-[3px] rounded-3xl">
+                      <span className="font-heading font-extrabold text-sm md:text-base text-slate-800 bg-white/90 px-4 py-2 rounded-2xl border border-slate-200 shadow-sm tracking-wide">
+                        Must Connect Wallet
+                      </span>
                     </div>
-                    <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200 shrink-0">
-                      Smart Contract Escrow
-                    </span>
-                  </div>
+                  )}
+
+                  {/* Inner Audit Card Content (Subtle blur when disconnected) */}
+                  <div className={`flex flex-col gap-6 h-full justify-between transition-all duration-300 ${(!isWalletConnected || !walletAddress) ? 'filter blur-[3px] opacity-50 select-none pointer-events-none' : ''}`}>
+                    <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                      <div>
+                        <h3 className="font-heading font-extrabold text-lg text-slate-900">{selectedMapCampaign?.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          4-Stage Escrow Milestone Auditing Map. Click any stage node to inspect Card A (FIFO Allocation) & Card B (NGO Payout).
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200 shrink-0">
+                        Smart Contract Escrow
+                      </span>
+                    </div>
 
                   {/* 4-STAGE CONNECTED MILESTONE NODE MAP */}
                   <div className="relative py-8 flex justify-between items-center px-4 overflow-x-auto min-h-[200px]">
@@ -683,12 +707,16 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-500 font-semibold">Blockchain Payout Transaction Hash</span>
                           {activeNode.isApproved && activeNode.transactionHash ? (
-                            <span
-                              className="font-mono text-trust-blue font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px] truncate max-w-[180px]"
-                              title={activeNode.transactionHash}
+                            <a
+                              href={`https://sepolia.etherscan.io/tx/${activeNode.transactionHash}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-mono text-trust-blue hover:underline font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px] truncate max-w-[180px] flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title={`View on Explorer: ${activeNode.transactionHash}`}
                             >
-                              {activeNode.transactionHash.slice(0, 8)}...{activeNode.transactionHash.slice(-6)}
-                            </span>
+                              <span>{activeNode.transactionHash.slice(0, 8)}...{activeNode.transactionHash.slice(-6)}</span>
+                              <LinkIcon size={11} className="shrink-0 text-trust-blue" />
+                            </a>
                           ) : activeNode.activeProof ? (
                             <span className="text-amber-700 font-bold italic text-[11px] bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60">
                               Awaiting Admin Release
@@ -701,6 +729,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                         </div>
                       </div>
                     </div>
+                  </div>
                   </div>
                 </div>
               </motion.div>

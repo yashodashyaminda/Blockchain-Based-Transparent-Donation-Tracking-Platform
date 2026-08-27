@@ -24,6 +24,14 @@ contract DonationTracker is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 netAmount
     );
 
+    event MilestonePayoutReleased(
+        uint256 indexed campaignId,
+        uint256 indexed phaseIndex,
+        address indexed ngoWallet,
+        uint256 amountReleased,
+        uint256 feeDeducted
+    );
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         // Prevent initialization of the implementation contract directly
@@ -83,6 +91,34 @@ contract DonationTracker is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         require(ngoSuccess, "NGO transfer failed");
 
         emit FundsReleased(campaignId, ngoAddress, amount, fee, netAmount);
+    }
+
+    /**
+     * @dev Releases milestone payout with 5% platform fee to admin and 95% to NGO wallet.
+     * Emits MilestonePayoutReleased event.
+     */
+    function releaseMilestonePayout(
+        uint256 campaignId,
+        uint256 phaseIndex,
+        address payable ngoWallet,
+        uint256 amount
+    ) external onlyOwner {
+        require(ngoWallet != address(0), "Invalid NGO recipient address");
+        require(campaignBalances[campaignId] >= amount, "Insufficient campaign balance");
+
+        uint256 feeDeducted = (amount * 5) / 100;
+        uint256 netAmount = amount - feeDeducted;
+
+        campaignBalances[campaignId] -= amount;
+
+        (bool feeSuccess, ) = payable(owner()).call{value: feeDeducted}("");
+        require(feeSuccess, "Fee transfer failed");
+
+        (bool ngoSuccess, ) = ngoWallet.call{value: netAmount}("");
+        require(ngoSuccess, "NGO transfer failed");
+
+        emit MilestonePayoutReleased(campaignId, phaseIndex, ngoWallet, amount, feeDeducted);
+        emit FundsReleased(campaignId, ngoWallet, amount, feeDeducted, netAmount);
     }
 
     /**

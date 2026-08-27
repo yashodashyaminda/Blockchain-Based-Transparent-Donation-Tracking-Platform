@@ -689,10 +689,10 @@ export const AdminDashboard: React.FC = () => {
 
                             {/* Requested Amount */}
                             <div className="flex flex-col gap-1">
-                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Requested Amount ($)</span>
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Requested Amount (ETH)</span>
                               <div className="flex items-center gap-2 px-3 py-2 border border-slate-200/80 rounded-xl bg-slate-50/50 text-slate-800 text-xs shadow-inner">
                                 <Wallet size={12} className="text-slate-400 shrink-0" />
-                                <span className="truncate font-semibold">${selectedRelease.milestone.amount.toLocaleString()}</span>
+                                <span className="truncate font-semibold">{selectedRelease.milestone.amount.toLocaleString()} ETH</span>
                               </div>
                             </div>
                           </div>

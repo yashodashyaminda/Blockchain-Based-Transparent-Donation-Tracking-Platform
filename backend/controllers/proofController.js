@@ -53,6 +53,80 @@ exports.createProof = async (req, res) => {
       });
     }
 
+    // 5.5 Dynamic 4-Phase Cap Calculations & NGO Claim Validation Guard
+    const reqAmountNum = parseFloat(amountRequested);
+    if (isNaN(reqAmountNum) || reqAmountNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please specify a valid positive requested amount',
+      });
+    }
+
+    const campaignTarget = campaign.targetAmount || 1.0;
+
+    // Fetch existing non-rejected proof claims for this campaign
+    const existingProofs = await Proof.find({ campaignId, isRejected: false });
+
+    // Helper to calculate total claimed in a given phase
+    const getPhaseClaimedTotal = (phaseName) => {
+      return existingProofs
+        .filter(p => p.milestonePhase && p.milestonePhase.toLowerCase().trim() === phaseName.toLowerCase().trim())
+        .reduce((sum, p) => sum + (p.amountRequested || 0), 0);
+    };
+
+    // 5.6 Sequential Milestone Phase Ordering Guard
+    const normalizedPhase = milestonePhase.toLowerCase().trim();
+    const hasPhase1 = existingProofs.some(p => p.milestonePhase && p.milestonePhase.toLowerCase().includes('phase 1'));
+    const hasPhase2 = existingProofs.some(p => p.milestonePhase && p.milestonePhase.toLowerCase().includes('phase 2'));
+
+    if (normalizedPhase.includes('phase 2') && !hasPhase1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sequential Milestone Violation: You must submit Phase 1: Initial Allocation before claiming Phase 2.',
+      });
+    }
+
+    if ((normalizedPhase.includes('phase 3') || normalizedPhase.includes('final')) && (!hasPhase1 || !hasPhase2)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sequential Milestone Violation: You cannot claim Phase 3: Final Completion directly. You must complete Phase 1 and Phase 2 first.',
+      });
+    }
+
+    let phaseMaxCap = 0;
+
+    if (normalizedPhase.includes('phase 1') || normalizedPhase.includes('initial')) {
+      phaseMaxCap = campaignTarget * 0.25;
+    } else if (normalizedPhase.includes('phase 2') || normalizedPhase.includes('intermediate')) {
+      phaseMaxCap = campaignTarget * 0.25;
+    } else if (normalizedPhase.includes('emergency') || normalizedPhase.includes('unplanned') || normalizedPhase.includes('phase 4')) {
+      phaseMaxCap = campaignTarget * 0.25;
+    } else if (normalizedPhase.includes('phase 3') || normalizedPhase.includes('final')) {
+      // Phase 3 Dynamic Cap = Target - (Phase 1 + Phase 2 + Phase 4)
+      const claimedP1 = getPhaseClaimedTotal('Phase 1: Initial Allocation');
+      const claimedP2 = getPhaseClaimedTotal('Phase 2: Intermediate Progress');
+      const claimedP4 = getPhaseClaimedTotal('Emergency / Unplanned Expense');
+      phaseMaxCap = Math.max(0, campaignTarget - (claimedP1 + claimedP2 + claimedP4));
+    } else {
+      phaseMaxCap = campaignTarget * 0.25;
+    }
+
+    const currentCumulativeClaimed = getPhaseClaimedTotal(milestonePhase);
+    const remainingPhaseCap = Math.max(0, phaseMaxCap - currentCumulativeClaimed);
+
+    if (reqAmountNum > remainingPhaseCap + 0.0001) {
+      return res.status(400).json({
+        success: false,
+        message: `Requested amount (${reqAmountNum}) exceeds the remaining phase cap (${remainingPhaseCap.toFixed(2)}). Maximum claimable balance remaining for this phase is ${remainingPhaseCap.toFixed(2)}.`,
+        data: {
+          phaseMaxCap,
+          currentCumulativeClaimed,
+          remainingPhaseCap,
+          requestedAmount: reqAmountNum
+        }
+      });
+    }
+
     // 6. Upload document file to IPFS and retrieve hash CID
     const ipfsCID = await uploadFileToIPFS(req.file);
 
