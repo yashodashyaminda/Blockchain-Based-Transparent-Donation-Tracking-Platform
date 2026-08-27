@@ -34,12 +34,15 @@ exports.uploadFileToIPFS = async (file) => {
 
         // Clean up local temp file if multer saved it to disk
         if (file.path && fs.existsSync(file.path)) {
-            fs.unlinkSync(file.path);
+            try { fs.unlinkSync(file.path); } catch (e) {}
         }
 
         // Return the unique IPFS hash (CID)
         return res.data.IpfsHash;
     } catch (error) {
+        if (file && file.path && fs.existsSync(file.path)) {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+        }
         console.error('IPFS Upload Error:', error.response?.data || error.message);
         throw new Error('Failed to upload document to decentralized IPFS storage');
     }

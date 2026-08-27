@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
 import { useAuth } from '../../context/AuthContext';
 import type { Campaign } from '../../context/Web3Context';
-import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw, ArrowRight, LogOut } from 'lucide-react';
+import { Search, Wallet, FileText, CheckCircle, Clock, Link as LinkIcon, AlertCircle, RefreshCw, ArrowRight } from 'lucide-react';
 import axiosInstance from '../../utils/axiosInstance';
 import { DonationModal } from '../../components/DonationModal';
 
@@ -13,7 +13,7 @@ interface DonorDashboardProps {
 }
 
 export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampaignId, setPreSelectedCampaignId }) => {
-  const { campaigns, isWalletConnected, walletAddress, walletBalance, connectWallet, disconnectWallet, transactions, refreshCampaigns } = useWeb3();
+  const { campaigns, isWalletConnected, walletAddress, connectWallet, disconnectWallet, transactions, refreshCampaigns } = useWeb3();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'map' | 'ledger'>('browse');
   const [loadingCampaigns, setLoadingCampaigns] = useState<boolean>(() => campaigns.length === 0);
@@ -52,10 +52,13 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     }
   }, [campaigns, mapCampaignId]);
 
+  const selectedMapCampaign = campaigns.find(c => c.id === mapCampaignId) || campaigns[0];
+
   // Fetch NGO Proof Requests for the selected visual tracker campaign
   useEffect(() => {
-    if (mapCampaignId) {
-      axiosInstance.get(`/proofs/campaign/${mapCampaignId}`)
+    const targetId = mapCampaignId || selectedMapCampaign?.id;
+    if (targetId) {
+      axiosInstance.get(`/proofs/campaign/${targetId}`)
         .then(res => {
           if (res.data && res.data.success) {
             setCampaignProofs(res.data.data);
@@ -65,7 +68,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
           console.warn('Failed to fetch campaign proof requests in DonorDashboard:', err);
         });
     }
-  }, [mapCampaignId]);
+  }, [mapCampaignId, selectedMapCampaign?.id, activeTab]);
 
   // Load preselected campaign from landing page
   useEffect(() => {
@@ -94,8 +97,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     t.donorAddress.toLowerCase() === walletAddress.toLowerCase()
   );
 
-  const selectedMapCampaign = campaigns.find(c => c.id === mapCampaignId) || campaigns[0];
-
   const formatTruncatedAddress = (addr: string) => {
     if (!addr) return 'Not Connected';
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -104,10 +105,25 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   // Construct 4-stage connected milestones linked to real NGO proof requests
   const targetVal = selectedMapCampaign?.target || 1.0;
 
+  // Helper to flexibly match proof phase strings (e.g., Emergency / Unplanned Expense vs Phase 4: Emergency...)
+  const isPhaseMatch = (proofPhase: string, targetPhaseTitle: string) => {
+    if (!proofPhase || !targetPhaseTitle) return false;
+    const normProof = proofPhase.toLowerCase().trim();
+    const normTarget = targetPhaseTitle.toLowerCase().trim();
+
+    if (normProof === normTarget) return true;
+    if (normTarget.includes('emergency') && normProof.includes('emergency')) return true;
+    if (normTarget.includes('phase 1') && normProof.includes('phase 1')) return true;
+    if (normTarget.includes('phase 2') && normProof.includes('phase 2')) return true;
+    if (normTarget.includes('phase 3') && normProof.includes('phase 3')) return true;
+
+    return false;
+  };
+
   // Rule 1: Phase 3 Dynamic Cap = Target - (Phase 1 + Phase 2 + Phase 4)
   const getPhaseClaimedTotal = (phaseTitle: string) => {
     return campaignProofs
-      .filter((p: any) => p.milestonePhase && p.milestonePhase.toLowerCase().trim() === phaseTitle.toLowerCase().trim() && !p.isRejected)
+      .filter((p: any) => p.milestonePhase && isPhaseMatch(p.milestonePhase, phaseTitle) && !p.isRejected)
       .reduce((sum: number, p: any) => sum + (p.amountRequested || 0), 0);
   };
 
@@ -126,9 +142,9 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   const mapPhases = phaseConfig.map((phase) => {
     const capAmount = phase.capAmount;
 
-    // Match proof requests for this phase
+    // Match proof requests for this phase flexibly
     const matchingProofs = campaignProofs.filter((p: any) =>
-      p.milestonePhase && p.milestonePhase.toLowerCase().trim() === phase.title.toLowerCase().trim()
+      p.milestonePhase && isPhaseMatch(p.milestonePhase, phase.title)
     );
 
     const approvedProof = matchingProofs.find((p: any) => p.isApproved);
@@ -143,20 +159,20 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
 
     const displayRequested = approvedProof
       ? totalAmountApproved
-      : pendingProof
+      : (pendingProof || matchingProofs.length > 0)
       ? totalAmountRequested
       : 0;
 
     let status = 'Pending';
     if (approvedProof) {
       status = 'Released'; // Green / Checkmark badge
-    } else if (pendingProof) {
+    } else if (pendingProof || matchingProofs.length > 0) {
       status = 'Approved'; // Yellow / Clock badge
     }
 
     const proofText = activeProof?.title || activeProof?.description || 'Milestone execution awaiting proof upload.';
     const transactionHash = activeProof?.payoutTxHash || activeProof?.transactionHash || '';
-    const ngoWallet = activeProof?.ngoWallet || (typeof selectedMapCampaign?.ngoId === 'string' && selectedMapCampaign.ngoId.startsWith('0x') ? selectedMapCampaign.ngoId : (selectedMapCampaign?.ngoWallet || ''));
+    const ngoWallet = activeProof?.ngoWallet || (typeof selectedMapCampaign?.ngoId === 'string' && selectedMapCampaign.ngoId.startsWith('0x') ? selectedMapCampaign.ngoId : ((selectedMapCampaign as any)?.ngoWallet || ''));
 
     return {
       id: phase.id,
