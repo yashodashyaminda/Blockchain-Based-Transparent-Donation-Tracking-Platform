@@ -4,7 +4,6 @@ import { useWeb3 } from '../context/Web3Context';
 import { useAuth } from '../context/AuthContext';
 import { CinematicHero } from '../components/CinematicHero';
 import { BookOpen, Activity, AlertCircle, Send, CheckCircle2, RefreshCw, ArrowRight } from 'lucide-react';
-import axiosInstance from '../utils/axiosInstance';
 import type { Campaign } from '../context/Web3Context';
 import { DonationModal } from '../components/DonationModal';
 
@@ -239,7 +238,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
             >
               <div className="absolute inset-0 bg-blue-600 rounded-3xl blur-2xl opacity-10 group-hover:opacity-20 transition-opacity duration-300" />
               <img
-                src="/assets/images/4.png"
+                src="/assets/images/1.png"
                 alt="Humanitarian efforts"
                 className="w-full aspect-[4/3] object-cover rounded-3xl shadow-xl border border-slate-100 group-hover:scale-[1.01] transition-transform duration-300"
               />
@@ -364,16 +363,15 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                               isGoalReached
                                 ? "Campaign target goal has been fully reached!"
                                 : user?.role === 'NGO' || user?.role === 'Admin'
-                                ? "Only Donors can contribute to campaigns."
-                                : undefined
+                                  ? "Only Donors can contribute to campaigns."
+                                  : undefined
                             }
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold shadow-sm transition-all duration-200 whitespace-nowrap ${
-                              isGoalReached
-                                ? 'opacity-60 cursor-not-allowed bg-slate-600 hover:bg-slate-600 text-white shadow-none'
-                                : user?.role === 'NGO' || user?.role === 'Admin'
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-heading text-[10px] font-bold shadow-sm transition-all duration-200 whitespace-nowrap ${isGoalReached
+                              ? 'opacity-60 cursor-not-allowed bg-slate-600 hover:bg-slate-600 text-white shadow-none'
+                              : user?.role === 'NGO' || user?.role === 'Admin'
                                 ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-200 shadow-none'
                                 : 'text-white bg-slate-900 hover:bg-blue-600 hover:shadow-md cursor-pointer'
-                            }`}
+                              }`}
                           >
                             <span>{isGoalReached ? 'Goal Reached 🎉' : 'Donate Now'}</span>
                             {!isGoalReached && <ArrowRight size={10} />}
@@ -404,9 +402,8 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                 <button
                   key={dotIdx}
                   onClick={() => setCampaignStartIndex(dotIdx)}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                    campaignStartIndex === dotIdx ? 'bg-blue-600 w-5' : 'bg-slate-300 hover:bg-slate-450'
-                  }`}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${campaignStartIndex === dotIdx ? 'bg-blue-600 w-5' : 'bg-slate-300 hover:bg-slate-450'
+                    }`}
                   aria-label={`Go to slide ${dotIdx + 1}`}
                 />
               ))}
