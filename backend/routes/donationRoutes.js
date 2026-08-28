@@ -6,6 +6,7 @@ const {
   getDonationsByWallet,
   getMyDonations,
   getDonations,
+  deleteDonation,
 } = require('../controllers/donationController');
 
 /**
@@ -27,5 +28,8 @@ router.route('/my-donations').get(getMyDonations);
 
 // Public route: Fetch all donations processed for a specific campaign ID
 router.route('/campaign/:campaignId').get(getCampaignDonations);
+
+// Delete a donation transaction log and update campaign raised amount
+router.route('/:id').delete(deleteDonation);
 
 module.exports = router;

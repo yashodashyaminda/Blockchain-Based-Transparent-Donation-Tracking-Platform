@@ -342,9 +342,9 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                         <div className="flex items-center gap-3 mt-auto pt-2 border-t border-slate-100">
                           <div className="flex flex-col min-w-0">
                             <span className="text-xs font-bold text-slate-900">
-                              ${campaign.raised.toLocaleString()}
+                              {campaign.raised} ETH
                             </span>
-                            <span className="text-[9px] text-slate-400">Target: ${campaign.target.toLocaleString()}</span>
+                            <span className="text-[9px] text-slate-400">Target: {campaign.target} ETH</span>
                           </div>
                           <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div

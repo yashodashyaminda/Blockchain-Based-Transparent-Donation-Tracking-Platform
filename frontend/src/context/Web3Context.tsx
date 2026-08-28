@@ -699,9 +699,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const gasLimit = await contract.donate.estimateGas(numericCampaignId, { value: valueWei });
       const feeData = await provider.getFeeData();
-      const gasPrice = feeData.gasPrice || feeData.maxFeePerGas || ethers.parseUnits('1', 'gwei'); // Default to 1 gwei if unknown
       
-      const estimatedFeeWei = gasLimit * gasPrice;
+      // MetaMask typically uses maxFeePerGas for its upper bound network fee estimate
+      const effectiveGasPrice = feeData.maxFeePerGas || feeData.gasPrice || ethers.parseUnits('1.5', 'gwei');
+      
+      // MetaMask often pads the gasLimit slightly for safety
+      const paddedGasLimit = (gasLimit * 115n) / 100n;
+      
+      const estimatedFeeWei = paddedGasLimit * effectiveGasPrice;
       return parseFloat(ethers.formatEther(estimatedFeeWei)).toFixed(6);
     } catch (error) {
       console.warn('Dynamic gas estimation failed, returning default:', error);

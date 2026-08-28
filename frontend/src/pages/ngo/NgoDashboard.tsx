@@ -767,7 +767,7 @@ export const NgoDashboard: React.FC = () => {
 
                   {(() => {
                     const selCamp = fetchedCampaigns.find(c => c.id === selectedCampaignId);
-                    const isFundedEnough = selCamp && parseFloat(selCamp.raisedAmount || '0') >= 0.05;
+                    const isFundedEnough = selCamp && (selCamp.raised || 0) >= 0.05;
 
                     return (
                       <>
@@ -838,14 +838,14 @@ export const NgoDashboard: React.FC = () => {
                         <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md mt-1 inline-block">ID: ...{c.id.slice(-5)}</span>
                       </div>
                       <span className="text-xs font-bold text-trust-blue bg-white border border-slate-200 px-3 py-1 rounded-xl">
-                        Target: ${c.target.toLocaleString()}
+                        Target: {c.target} ETH
                       </span>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
                         <span>Fundraising Progress</span>
-                        <span>{percent}% ({c.raised.toLocaleString()} raised)</span>
+                        <span>{percent}% ({c.raised} ETH raised)</span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
                         <div className="h-full bg-trust-blue" style={{ width: `${percent}%` }} />
@@ -859,7 +859,7 @@ export const NgoDashboard: React.FC = () => {
                           <div key={m.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 text-xs">
                             <span className="font-medium text-slate-700 line-clamp-1">{idx + 1}. {m.title}</span>
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold text-slate-500">${m.amount.toLocaleString()}</span>
+                              <span className="font-semibold text-slate-500">{m.amount} ETH</span>
                               <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${m.status === 'Released'
                                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                                 : m.status === 'Approved'

@@ -249,3 +249,49 @@ exports.getDonations = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Delete a donation and recalculate campaign raisedAmount
+ * @route   DELETE /api/donations/:id
+ * @access  Public / Admin
+ */
+exports.deleteDonation = async (req, res) => {
+  try {
+    const donation = await Donation.findById(req.params.id);
+    
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Donation not found',
+      });
+    }
+
+    const campaign = await Campaign.findById(donation.campaignId);
+    
+    if (campaign) {
+      // Revert the amount
+      campaign.raisedAmount -= donation.amount;
+      if (campaign.raisedAmount < 0) campaign.raisedAmount = 0;
+      
+      if (campaign.raisedAmount < campaign.targetAmount && campaign.status === 'Funded') {
+        campaign.status = 'Active';
+      }
+      
+      await campaign.save();
+    }
+
+    await donation.deleteOne();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Donation deleted and campaign updated successfully',
+    });
+  } catch (error) {
+    console.error('Delete Donation Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error occurred while deleting donation',
+      error: error.message,
+    });
+  }
+};
