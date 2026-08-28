@@ -298,7 +298,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshTransactions();
   }, [refreshCampaigns, refreshTransactions]);
 
-  // Auto check connected account on load ONLY if donor explicitly connected wallet previously
+  // Auto check connected account on load ONLY if explicitly connected wallet previously
   useEffect(() => {
     const checkInitialConnection = async () => {
       const isExplicitlyConnected = localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
@@ -334,7 +334,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     checkInitialConnection();
   }, []);
-
   // Handle MetaMask events (accountsChanged, chainChanged)
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
@@ -495,7 +494,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     return await connectWallet();
   }, [connectWallet, currentRole, donorProfile, refreshBalance, refreshTransactions]);
 
-  const disconnectWallet = useCallback(() => {
+  const disconnectWallet = useCallback(async () => {
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      try {
+        await (window as any).ethereum.request({
+          method: 'wallet_revokePermissions',
+          params: [{ eth_accounts: {} }]
+        });
+      } catch (err) {
+        console.warn('Revoke permissions failed or not supported:', err);
+      }
+    }
+
     setIsWalletConnected(false);
     setWalletAddress('');
     setWalletBalance('0');
@@ -512,12 +522,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginUser = async (email: string, _password: string) => {
     const cleanEmail = email.trim().toLowerCase();
 
-    setIsWalletConnected(false);
-    setWalletAddress('');
-    setWalletBalance('0');
-    localStorage.removeItem('wallet_connected');
-    localStorage.removeItem('wallet_address');
-    localStorage.removeItem('wallet_balance');
+    disconnectWallet();
 
     if (cleanEmail === 'admin@platform.org' || cleanEmail.includes('admin')) {
       setCurrentRole('admin');
