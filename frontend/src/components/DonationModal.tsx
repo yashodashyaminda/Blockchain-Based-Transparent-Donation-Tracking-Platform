@@ -16,12 +16,25 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
   const [donationSuccess, setDonationSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [isCheckingBalance, setIsCheckingBalance] = useState<boolean>(true);
+
   // Refresh balance when modal opens or wallet connects
   useEffect(() => {
-    if (selectedCampaign && isWalletConnected && walletAddress) {
-      refreshBalance(walletAddress);
-    }
+    let isMounted = true;
+    const loadBalance = async () => {
+      if (selectedCampaign && isWalletConnected && walletAddress) {
+        setIsCheckingBalance(true);
+        await refreshBalance(walletAddress);
+        if (isMounted) setIsCheckingBalance(false);
+      } else {
+        if (isMounted) setIsCheckingBalance(false);
+      }
+    };
+    loadBalance();
     setErrorMessage(null);
+    return () => {
+      isMounted = false;
+    };
   }, [selectedCampaign?.id, isWalletConnected, walletAddress, refreshBalance]);
 
   const numericAmount = parseFloat(donationAmount) || 0;
@@ -36,7 +49,12 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
 
   const handleConnectWallet = async () => {
     setErrorMessage(null);
-    await connectWallet();
+    setIsCheckingBalance(true);
+    const addr = await connectWallet();
+    if (addr) {
+      await refreshBalance(addr);
+    }
+    setIsCheckingBalance(false);
   };
 
   const handleDonationSubmit = async (e: React.FormEvent) => {
@@ -142,14 +160,45 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                 <div className="flex flex-col gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500 font-medium">Connected Wallet</span>
-                    <span className="font-mono text-slate-800 font-bold bg-white px-2 py-0.5 rounded border border-slate-200" title={walletAddress}>
-                      {formatAddress(walletAddress)}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-slate-800 font-bold bg-white px-2 py-0.5 rounded border border-slate-200" title={walletAddress}>
+                        {formatAddress(walletAddress)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleConnectWallet}
+                        title="Switch or Reconnect MetaMask Wallet"
+                        className="text-[10px] text-blue-600 hover:underline font-semibold cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex justify-between items-center text-xs">
+                  <div className="flex justify-between items-center text-xs gap-2">
                     <span className="text-slate-500 font-medium">Available Balance</span>
-                    <span className="font-bold text-slate-900">{currentBalance.toFixed(4)} ETH</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isCheckingBalance ? (
+                        <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                          <RefreshCw size={12} className="animate-spin text-trust-blue" />
+                          <span>Verifying...</span>
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-900">{currentBalance.toFixed(4)} ETH</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsCheckingBalance(true);
+                          await refreshBalance(walletAddress);
+                          setIsCheckingBalance(false);
+                        }}
+                        title="Refresh Wallet Balance"
+                        className="p-1 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                      >
+                        <RefreshCw size={12} className={isCheckingBalance ? "animate-spin text-trust-blue" : ""} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="border-t border-slate-200/80 my-0.5" />
@@ -182,7 +231,16 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
               )}
 
               {/* Action Button: Connect Wallet OR Confirm Transaction */}
-              {isGoalReached ? (
+              {isCheckingBalance ? (
+                <button
+                  type="button"
+                  disabled={true}
+                  className="w-full py-4 rounded-xl font-heading text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 cursor-wait"
+                >
+                  <RefreshCw size={14} className="animate-spin text-trust-blue" />
+                  <span>Verifying Wallet Balance...</span>
+                </button>
+              ) : isGoalReached ? (
                 <button
                   type="button"
                   disabled={true}
@@ -205,10 +263,10 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                   type="submit"
                   disabled={isDonating || donationSuccess || !hasEnoughBalance || numericAmount <= 0}
                   className={`w-full py-4 rounded-xl font-heading text-xs font-bold text-white shadow-md transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${!hasEnoughBalance
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-300 shadow-none'
-                      : donationSuccess
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-900 hover:bg-trust-blue shadow-md hover:shadow-lg glow-blue'
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-300 shadow-none'
+                    : donationSuccess
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-900 hover:bg-trust-blue shadow-md hover:shadow-lg glow-blue'
                     }`}
                 >
                   {isDonating ? (
@@ -230,8 +288,8 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                 </button>
               )}
 
-              {/* Insufficient balance message under button if disabled */}
-              {isWalletConnected && !hasEnoughBalance && !isGoalReached && (
+              {/* Insufficient balance message under button if disabled and balance check completed */}
+              {isWalletConnected && !isCheckingBalance && !hasEnoughBalance && !isGoalReached && (
                 <p className="text-[11px] text-center font-bold text-red-600 bg-red-50 py-2 rounded-lg border border-red-200">
                   ⚠️ Insufficient ETH balance to cover total amount ({totalEthRequired.toFixed(4)} ETH)
                 </p>

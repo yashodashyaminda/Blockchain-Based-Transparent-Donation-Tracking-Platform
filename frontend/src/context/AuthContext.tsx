@@ -23,7 +23,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { setCurrentRole, bindWalletToProfile, setActiveNgoId, setDonorProfile, resetState, disconnectWallet } = useWeb3();
+  const { setCurrentRole, setActiveNgoId, setDonorProfile, resetState, disconnectWallet } = useWeb3();
 
   const [user, setUser] = useState<UserData | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     setIsLoading(false);
-  }, [setCurrentRole, bindWalletToProfile, setActiveNgoId, setDonorProfile]);
+  }, []);
 
   // Log in user session
   const login = (jwtToken: string, userData: UserData) => {
@@ -70,13 +70,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(jwtToken);
     setUser(userData);
 
-    // Sync Web3Context role and profiles
+    // Sync Web3Context role and profiles (Wallet remains disconnected until explicitly connected via MetaMask)
     const mappedRole = userData.role.toLowerCase() as UserRole;
     setCurrentRole(mappedRole);
-
-    if (userData.walletAddress) {
-      bindWalletToProfile(userData.walletAddress);
-    }
 
     if (mappedRole === 'ngo') {
       setActiveNgoId(userData.id);

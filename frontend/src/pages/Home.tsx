@@ -41,7 +41,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       }
     };
     fetchCampaigns();
-  }, [refreshCampaigns, campaigns.length]);
+  }, [refreshCampaigns]);
 
   // Form submission handler
   const handleContactSubmit = (e: React.FormEvent) => {

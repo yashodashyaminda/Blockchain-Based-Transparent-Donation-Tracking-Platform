@@ -99,6 +99,54 @@ export interface Web3ContextType {
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
+// Helper function to request MetaMask network switch to Hardhat Localhost (127.0.0.1:8545)
+export const ensureHardhatNetwork = async (): Promise<boolean> => {
+  if (typeof window === 'undefined' || !(window as any).ethereum) return false;
+  const ethereum = (window as any).ethereum;
+  const targetChainIdHex = '0x539'; // 1337 in hex
+
+  try {
+    const currentChain = await ethereum.request({ method: 'eth_chainId' });
+    if (currentChain === targetChainIdHex || currentChain === '0x7a69') {
+      return true;
+    }
+
+    try {
+      await ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: targetChainIdHex }],
+      });
+      return true;
+    } catch (switchErr: any) {
+      if (switchErr?.code === 4902 || switchErr?.message?.includes('unrecognized') || switchErr?.message?.includes('Unknown')) {
+        try {
+          await ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: targetChainIdHex,
+                chainName: 'Hardhat Localhost 8545',
+                rpcUrls: ['http://127.0.0.1:8545/'],
+                nativeCurrency: {
+                  name: 'Test ETH',
+                  symbol: 'ETH',
+                  decimals: 18,
+                },
+              },
+            ],
+          });
+          return true;
+        } catch (addErr) {
+          console.warn('Network addition to MetaMask failed:', addErr);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Network switch check notice:', err);
+  }
+  return false;
+};
+
 // All Initial Data Set to Empty Arrays (Mock Data Removed)
 const initialNGOs: NGO[] = [];
 const initialCampaigns: Campaign[] = [];
@@ -143,21 +191,52 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const refreshBalance = useCallback(async (addr?: string): Promise<string> => {
-    const target = addr || walletAddress;
-    if (!target || typeof window === 'undefined' || !(window as any).ethereum) {
-      return '0';
+    let target = addr || walletAddress || donorProfile?.wallet;
+
+    if (!target && typeof window !== 'undefined' && (window as any).ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const accounts = await provider.send('eth_accounts', []);
+        if (accounts && accounts.length > 0) {
+          target = accounts[0];
+          setWalletAddress(target);
+        }
+      } catch (e) {
+        console.warn('eth_accounts fetch notice:', e);
+      }
     }
-    try {
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
-      const balanceWei = await provider.getBalance(target);
-      const formatted = parseFloat(ethers.formatEther(balanceWei)).toFixed(4);
-      setWalletBalance(formatted);
-      return formatted;
-    } catch (err) {
-      console.error('Failed to fetch wallet balance:', err);
-      return walletBalance;
+
+    if (!target) return '0.0000';
+
+    let balanceWei = 0n;
+
+    // 1. Try BrowserProvider (MetaMask)
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        balanceWei = await provider.getBalance(target);
+      } catch (err) {
+        console.warn('Failed to fetch wallet balance via BrowserProvider:', err);
+      }
     }
-  }, [walletAddress, walletBalance]);
+
+    // 2. If BrowserProvider returned 0 Wei or failed, check local Hardhat node (http://127.0.0.1:8545)
+    if (balanceWei === 0n) {
+      try {
+        const localProvider = new ethers.JsonRpcProvider('http://127.0.0.1:8545');
+        const localBal = await localProvider.getBalance(target);
+        if (localBal > 0n) {
+          balanceWei = localBal;
+        }
+      } catch (localErr) {
+        // Local node not active
+      }
+    }
+
+    const formatted = parseFloat(ethers.formatEther(balanceWei)).toFixed(4);
+    setWalletBalance(formatted);
+    return formatted;
+  }, [walletAddress, donorProfile?.wallet]);
 
   const refreshCampaigns = useCallback(async () => {
     try {
@@ -262,8 +341,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const ethereum = (window as any).ethereum;
 
       const handleAccountsChanged = async (accounts: string[]) => {
-        const isExplicitlyConnected = localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
-        if (!isExplicitlyConnected || accounts.length === 0) {
+        if (accounts.length === 0) {
           setIsWalletConnected(false);
           setWalletAddress('');
           setWalletBalance('0');
@@ -277,6 +355,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         const newAddr = accounts[0];
         setWalletAddress(newAddr);
         setIsWalletConnected(true);
+        localStorage.setItem('wallet_connected', 'true');
+        localStorage.setItem('isWalletConnected', 'true');
+        localStorage.setItem('wallet_address', newAddr);
         try {
           const provider = new ethers.BrowserProvider(ethereum);
           const bal = await provider.getBalance(newAddr);
@@ -286,8 +367,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       };
 
-      const handleChainChanged = () => {
-        window.location.reload();
+      const handleChainChanged = (_chainId: string) => {
+        console.log('MetaMask chain updated to:', _chainId);
+        if (walletAddress) {
+          refreshBalance(walletAddress);
+        }
       };
 
       ethereum.on('accountsChanged', handleAccountsChanged);
@@ -322,7 +406,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isWalletConnected, walletAddress, walletBalance, currentRole, activeNgoId, donorProfile, ngos, campaigns, transactions]);
 
   // Web3 Connect Wallet via MetaMask
-  const connectWallet = async (): Promise<string | null> => {
+  const connectWallet = useCallback(async (): Promise<string | null> => {
     const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : undefined;
 
     if (!ethereum) {
@@ -331,21 +415,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // Auto-switch MetaMask to Hardhat Localhost 8545 network if connected to mainnet/other chains
+      await ensureHardhatNetwork();
+
       let accounts: string[] = [];
       try {
-        await ethereum.request({
-          method: 'wallet_requestPermissions',
-          params: [{ eth_accounts: {} }]
-        });
-        accounts = await ethereum.request({ method: 'eth_accounts' });
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
       } catch (permErr: any) {
         // If user explicitly rejected or closed the connection popup (code 4001), abort immediately!
         if (permErr?.code === 4001 || permErr?.message?.includes('rejected')) {
           console.log('User cancelled or closed MetaMask connection popup.');
           return null;
         }
-        // Fallback to eth_requestAccounts only for providers that do not support wallet_requestPermissions
-        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
       }
 
       if (accounts && accounts.length > 0) {
@@ -368,7 +449,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('wallet_balance', formattedBal);
 
         if (currentRole === 'donor' && donorProfile) {
-          setDonorProfile({ ...donorProfile, wallet: addr });
+          setDonorProfile(prev => (prev ? { ...prev, wallet: addr } : prev));
         } else if (currentRole === 'ngo' && activeNgoId) {
           setNgos(prev =>
             prev.map(n => (n.id === activeNgoId ? { ...n, wallet: addr } : n))
@@ -394,26 +475,27 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     return null;
-  };
+  }, [currentRole, donorProfile, activeNgoId, refreshTransactions]);
 
-  const bindWalletToProfile = async (customAddr?: string): Promise<string | null> => {
+  const bindWalletToProfile = useCallback(async (customAddr?: string): Promise<string | null> => {
     if (customAddr) {
       const isExplicit = localStorage.getItem('isWalletConnected') === 'true' || localStorage.getItem('wallet_connected') === 'true';
       if (isExplicit) {
         setWalletAddress(customAddr);
         setIsWalletConnected(true);
+        refreshBalance(customAddr);
         refreshTransactions(customAddr);
         if (currentRole === 'donor' && donorProfile) {
-          setDonorProfile({ ...donorProfile, wallet: customAddr });
+          setDonorProfile(prev => (prev ? { ...prev, wallet: customAddr } : prev));
         }
         return customAddr;
       }
       return null;
     }
     return await connectWallet();
-  };
+  }, [connectWallet, currentRole, donorProfile, refreshBalance, refreshTransactions]);
 
-  const disconnectWallet = () => {
+  const disconnectWallet = useCallback(() => {
     setIsWalletConnected(false);
     setWalletAddress('');
     setWalletBalance('0');
@@ -424,10 +506,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('isWalletConnected', 'false');
     localStorage.setItem('wallet_connected', 'false');
 
-    if (donorProfile) {
-      setDonorProfile({ ...donorProfile, wallet: '' });
-    }
-  };
+    setDonorProfile(prev => (prev ? { ...prev, wallet: '' } : null));
+  }, []);
 
   const loginUser = async (email: string, _password: string) => {
     const cleanEmail = email.trim().toLowerCase();
@@ -597,6 +677,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // Auto-switch MetaMask to Hardhat Localhost 8545 network before transaction execution
+      await ensureHardhatNetwork();
+
       const campaign = campaigns.find(c => c.id === campaignId);
       if (!campaign) return { success: false, error: 'Campaign not found' };
 
