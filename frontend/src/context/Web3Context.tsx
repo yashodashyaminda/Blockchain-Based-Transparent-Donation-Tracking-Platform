@@ -794,6 +794,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         hash: txHash,
         date: dateStr,
         amount: amountEth,
+        allocatedAmount: 0,
         donorAddress: walletAddress,
         campaignId,
         campaignName: campaign.name
@@ -872,9 +873,19 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const exactAmountStr = Number(amountEth).toFixed(6);
       const amountWei = ethers.parseEther(exactAmountStr);
 
-      // The contract expects campaignId as a uint256. If it's a MongoDB ID, you might need a mapping,
-      // but assuming the contract uses a numeric representation or we fallback to 0 if it fails parsing:
-      const numericCampaignId = parseInt(campaignId.replace(/[^0-9]/g, '')) || 0;
+      let numericCampaignId: bigint;
+      const cleanHex = campaignId.replace(/[^0-9a-fA-F]/g, '');
+      if (cleanHex.length >= 24) {
+        numericCampaignId = BigInt("0x" + cleanHex.slice(0, 24));
+      } else if (cleanHex.length > 0) {
+        numericCampaignId = BigInt("0x" + cleanHex.padStart(24, '0'));
+      } else {
+        let hexStr = '';
+        for (let i = 0; i < campaignId.length; i++) {
+          hexStr += campaignId.charCodeAt(i).toString(16);
+        }
+        numericCampaignId = BigInt("0x" + hexStr.slice(0, 24).padStart(24, '0'));
+      }
 
       const tx = await contract.releaseMilestonePayout(
         numericCampaignId,

@@ -959,8 +959,8 @@ export const AdminDashboard: React.FC = () => {
                                   />
                                 ) : (
                                   <span className="font-bold text-slate-800">
-                                    ${c.targetAmount?.toLocaleString() || '0'}
-                                    {c.raisedAmount !== undefined && ` (Raised: $${c.raisedAmount.toLocaleString()})`}
+                                    {c.targetAmount?.toLocaleString() || '0'} ETH
+                                    {c.raisedAmount !== undefined && ` (Raised: ${c.raisedAmount.toLocaleString()} ETH)`}
                                   </span>
                                 )}
                               </td>
