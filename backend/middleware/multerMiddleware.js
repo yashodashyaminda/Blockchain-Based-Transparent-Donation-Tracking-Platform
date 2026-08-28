@@ -1,15 +1,8 @@
 // backend/middleware/multerMiddleware.js
 const multer = require('multer');
 
-// Configure storage for temporary file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, './'); // Temporary local root or a temp folder
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname);
-    }
-});
+// Configure storage for temporary file uploads to memory (no local disk files)
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,

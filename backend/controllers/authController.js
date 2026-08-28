@@ -10,7 +10,7 @@ const { uploadFileToIPFS } = require('../services/ipfsService');
  */
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'chaintrust_secret', {
-    expiresIn: process.env.JWT_EXPIRE || '30d', // Expires in 30 days by default
+    expiresIn: process.env.JWT_EXPIRE || '1h', // Expires in 1 hour by default
   });
 };
 

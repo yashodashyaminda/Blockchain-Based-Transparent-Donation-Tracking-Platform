@@ -97,11 +97,7 @@ exports.createDonation = async (req, res) => {
 
     // 6. Update the campaign's total raised amount
     campaign.raisedAmount += Number(amount);
-
-    if (campaign.raisedAmount >= campaign.targetAmount) {
-      campaign.status = 'Funded';
-    }
-
+    
     await campaign.save();
 
     return res.status(201).json({

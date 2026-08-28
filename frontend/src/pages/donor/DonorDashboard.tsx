@@ -193,6 +193,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       isPending: Boolean(pendingProof),
       activeProof,
       allRelevantProofs,
+      totalAmountApproved, // STRICT allocation anchor
       proofText,
       transactionHash,
       ngoWallet: ngoWallet || '',
@@ -215,7 +216,6 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     );
 
     const donorTotalContribution = donorDonations.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-    const donorTotalAllocated = donorDonations.reduce((acc, curr) => acc + (curr.allocatedAmount || 0), 0);
 
     if (donorTotalContribution === 0) {
       return {
@@ -225,11 +225,28 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       };
     }
 
-    const remainingEscrow = Math.max(0, donorTotalContribution - donorTotalAllocated);
+    let remainingContribution = donorTotalContribution;
+    let allocatedAmountForNode = 0;
+    
+    for (let i = 0; i <= nodeIdx; i++) {
+      const phase = mapPhases[i];
+      // ONLY allocate funds from the donor if the admin has actually approved/released the phase
+      const phaseApproved = phase.totalAmountApproved;
+      
+      const allocatedToThisPhase = Math.min(remainingContribution, phaseApproved, phase.capAmount);
+      remainingContribution -= allocatedToThisPhase;
+      
+      if (i === nodeIdx) {
+        allocatedAmountForNode = allocatedToThisPhase;
+      }
+    }
 
+    const remainingEscrow = Math.max(0, remainingContribution);
+    const currentPhase = mapPhases[nodeIdx];
+    
     let badgeStatus = '100% LOCKED IN ESCROW';
-    if (donorTotalAllocated > 0) {
-      if (remainingEscrow === 0) {
+    if (allocatedAmountForNode > 0) {
+      if (allocatedAmountForNode >= currentPhase.capAmount || remainingEscrow === 0) {
         badgeStatus = 'FULLY UTILIZED';
       } else {
         badgeStatus = 'PARTIALLY UTILIZED';
@@ -237,7 +254,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     }
 
     return {
-      allocatedAmount: donorTotalAllocated,
+      allocatedAmount: allocatedAmountForNode,
       remainingEscrow,
       badgeStatus
     };

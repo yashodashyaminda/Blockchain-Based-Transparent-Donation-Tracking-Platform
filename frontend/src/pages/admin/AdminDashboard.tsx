@@ -45,13 +45,14 @@ export const AdminDashboard: React.FC = () => {
   // Simulated metrics counters
   const [processedFunds, setProcessedFunds] = useState(0);
   const [activeUsers, setActiveUsers] = useState(0);
+  const [verifiedNgosCount, setVerifiedNgosCount] = useState(0);
   const [donationCount, setDonationCount] = useState(0);
 
   useEffect(() => {
     // Sum total target/raises for metrics
-    const totalRaised = campaigns.reduce((acc, c) => acc + c.raised, 0) + 12000; // base offset
-    const totalUsers = pendingNgos.length + 42; // base offset
-    const totalTx = transactions.length + 128; // base offset
+    const totalRaised = campaigns.reduce((acc, c) => acc + c.raised, 0);
+    const totalUsers = verifiedNgosCount;
+    const totalTx = transactions.length;
 
     // Animate counters
     let rStart = 0;
@@ -74,7 +75,7 @@ export const AdminDashboard: React.FC = () => {
       } else {
         setActiveUsers(uStart);
       }
-    }, 40);
+    }, 50);
 
     let tStart = 0;
     const tInterval = setInterval(() => {
@@ -97,6 +98,16 @@ export const AdminDashboard: React.FC = () => {
   // Load real admin listings on component mount
   useEffect(() => {
     const fetchAdminData = async () => {
+      // 0. Fetch Verified NGOs Count
+      try {
+        const verifiedResponse = await axiosInstance.get('/auth/users?role=NGO&isVerified=true');
+        if (verifiedResponse.data && verifiedResponse.data.success) {
+          setVerifiedNgosCount(verifiedResponse.data.data.length);
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch verified NGOs:', err);
+      }
+
       // 1. Fetch unverified NGOs
       try {
         const ngosResponse = await axiosInstance.get('/auth/users?role=NGO&isVerified=false&verificationStatus=Pending');
@@ -260,15 +271,14 @@ export const AdminDashboard: React.FC = () => {
       setIsContractExecuting(false);
       setContractSuccess(true);
 
-      // 3. Remove the approved proof from the local pending state
-      setPendingProofs(prev => prev.filter(p => p._id !== milestoneId));
-      setSelectedProofId('');
-
       setTimeout(() => {
         setContractSuccess(false);
         setVerifyingCampaignId('');
         setVerifyingMilestoneId('');
-      }, 3000);
+        // 3. Remove the approved proof from the local pending state after showing 'Completed'
+        setPendingProofs(prev => prev.filter(p => p._id !== milestoneId));
+        setSelectedProofId('');
+      }, 2000);
     } catch (err: any) {
       console.error(err);
       setIsContractExecuting(false);
@@ -480,7 +490,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* POST-LOGIN WEB3 WALLET BINDING BANNER */}
-        {!isWalletConnected && (
+        {!isWalletConnected && activeSubTab !== 'metrics' && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -742,7 +752,7 @@ export const AdminDashboard: React.FC = () => {
                           <div className="flex gap-3 mt-1">
                             {/* Verify & Release Funds Button */}
                             <button
-                              onClick={() => handleVerifyMilestone(selectedRelease.campaign.id, selectedRelease.milestone.id)}
+                            onClick={() => handleVerifyMilestone(selectedRelease.campaign.id, selectedRelease.milestone.id)}
                               disabled={isContractExecuting || !isWalletConnected}
                               title={!isWalletConnected ? "Please connect your Admin Web3 wallet to verify and release milestone funds" : undefined}
                               className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-950 hover:bg-emerald-600 disabled:bg-slate-400 disabled:cursor-not-allowed shadow-sm transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5"
