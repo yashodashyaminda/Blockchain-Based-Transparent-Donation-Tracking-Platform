@@ -201,7 +201,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         const accounts = await provider.send('eth_accounts', []);
         if (accounts && accounts.length > 0) {
           target = accounts[0];
-          setWalletAddress(target);
+          setWalletAddress(target || '');
         }
       } catch (e) {
         console.warn('eth_accounts fetch notice:', e);
@@ -675,7 +675,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isWalletConnected || !walletAddress || !CONTRACT_ADDRESS || typeof window === 'undefined' || !(window as any).ethereum) {
       return '0.00021'; // Default fallback
     }
-    
+
     try {
       let numericCampaignId: bigint;
       const cleanHex = campaignId.replace(/[^0-9a-fA-F]/g, '');
@@ -694,18 +694,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-      
+
       const valueWei = ethers.parseEther(amountEth.toString());
-      
+
       const gasLimit = await contract.donate.estimateGas(numericCampaignId, { value: valueWei });
       const feeData = await provider.getFeeData();
-      
+
       // MetaMask typically uses maxFeePerGas for its upper bound network fee estimate
       const effectiveGasPrice = feeData.maxFeePerGas || feeData.gasPrice || ethers.parseUnits('1.5', 'gwei');
-      
+
       // MetaMask often pads the gasLimit slightly for safety
       const paddedGasLimit = (gasLimit * 115n) / 100n;
-      
+
       const estimatedFeeWei = paddedGasLimit * effectiveGasPrice;
       return parseFloat(ethers.formatEther(estimatedFeeWei)).toFixed(6);
     } catch (error) {
