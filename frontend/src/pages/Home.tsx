@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useWeb3 } from '../context/Web3Context';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +6,9 @@ import { CinematicHero } from '../components/CinematicHero';
 import { BookOpen, Activity, AlertCircle, Send, CheckCircle2, RefreshCw, ArrowRight } from 'lucide-react';
 import type { Campaign } from '../context/Web3Context';
 import { DonationModal } from '../components/DonationModal';
+import emailjs from '@emailjs/browser';
+
+
 
 interface HomeProps {
   setActivePage: (page: string) => void;
@@ -27,6 +30,38 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
   // Carousel sliding state index
   const [campaignStartIndex, setCampaignStartIndex] = useState(0);
 
+  // අලුතින් දාන Form Reference එක
+  const form = useRef<HTMLFormElement>(null);
+
+  // අලුත් Form Submission Handler එක
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !message || !form.current) return;
+
+    setIsSubmitting(true);
+
+    // .env එකෙන් Credentials අරන් EmailJS එකට යවනවා
+    emailjs.sendForm(
+      import.meta.env.VITE_EMAILJS_SERVICE_ID,
+      import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+      form.current,
+      import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+    )
+      .then((result) => {
+        console.log('Success:', result.text);
+        setIsSubmitting(false);
+        setIsSubmitted(true);
+        setEmail('');
+        setMessage('');
+        setTimeout(() => setIsSubmitted(false), 1500);
+      })
+      .catch((error) => {
+        console.error('Failed:', error.text);
+        setIsSubmitting(false);
+        alert("Failed to send message. Please check your credentials and try again.");
+      });
+  };
+
   useEffect(() => {
     const fetchCampaigns = async () => {
       if (campaigns.length === 0) {
@@ -42,21 +77,6 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
     };
     fetchCampaigns();
   }, [refreshCampaigns]);
-
-  // Form submission handler
-  const handleContactSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !message) return;
-
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSubmitted(true);
-      setEmail('');
-      setMessage('');
-      setTimeout(() => setIsSubmitted(false), 4000);
-    }, 1500);
-  };
 
   // Donation button router
   const handleDonateNow = (campaignId: string) => {
@@ -437,7 +457,8 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
             transition={{ type: 'spring', stiffness: 100, damping: 15 }}
             className="p-6 md:p-8 rounded-3xl border border-slate-100 bg-white shadow-sm relative"
           >
-            <form onSubmit={handleContactSubmit} className="flex flex-col gap-5">
+            {/* 🔴 මෙතන ref={form} එක දාන්න අනිවාර්යයි */}
+            <form ref={form} onSubmit={handleContactSubmit} className="flex flex-col gap-5">
               <div className="grid md:grid-cols-2 gap-5">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="contact-email" className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -446,6 +467,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                   <input
                     type="email"
                     id="contact-email"
+                    name="user_email" // 🔴 EmailJS එකට අල්ලගන්න Name attribute එක
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -459,11 +481,12 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                   </label>
                   <select
                     id="contact-subject"
+                    name="subject" // 🔴 EmailJS එකට අල්ලගන්න Name attribute එක
                     className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-trust-blue/30 focus:border-trust-blue transition-all duration-200 text-xs"
                   >
-                    <option>General Inquiries</option>
-                    <option>NGO Partnership Verification</option>
-                    <option>System Security & Auditing</option>
+                    <option value="General Inquiries">General Inquiries</option>
+                    <option value="NGO Partnership Verification">NGO Partnership Verification</option>
+                    <option value="System Security & Auditing">System Security & Auditing</option>
                   </select>
                 </div>
               </div>
@@ -474,6 +497,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
                 </label>
                 <textarea
                   id="contact-message"
+                  name="message" // 🔴 EmailJS එකට අල්ලගන්න Name attribute එක
                   required
                   rows={4}
                   value={message}
