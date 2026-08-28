@@ -25,6 +25,10 @@ const DonationSchema = new mongoose.Schema(
       required: [true, 'Please specify the donation value in USD'],
       min: [0.01, 'Donation amount must be greater than 0'],
     },
+    allocatedAmount: {
+      type: Number,
+      default: 0,
+    },
     transactionHash: {
       type: String,
       required: [true, 'Please provide the Ethereum/decentralized blockchain transaction hash'],

@@ -765,12 +765,25 @@ export const NgoDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={!isVerified || !isWalletConnected || !selectedCampaignId || !milestonePhase || !amountRequested || proofUploadState !== 'completed' || proofSubmittedSuccess}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-milestone-green shadow-md transition-all duration-300 cursor-pointer disabled:bg-slate-400 disabled:cursor-not-allowed"
-                    title={!isWalletConnected ? "Connect wallet firstly" : undefined}
-                  >
+                  {(() => {
+                    const selCamp = fetchedCampaigns.find(c => c.id === selectedCampaignId);
+                    const isFundedEnough = selCamp && parseFloat(selCamp.raisedAmount || '0') >= 0.05;
+
+                    return (
+                      <>
+                        {selectedCampaignId && !isFundedEnough && (
+                          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                            <AlertCircle size={16} className="text-amber-600 shrink-0" />
+                            <span className="font-bold">Campaign must raise at least 0.05 ETH before claiming funds.</span>
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={!isVerified || !isWalletConnected || !selectedCampaignId || !milestonePhase || !amountRequested || parseFloat(amountRequested) <= 0 || !isFundedEnough || proofUploadState !== 'completed' || proofSubmittedSuccess}
+                          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading text-xs font-bold text-white bg-slate-900 hover:bg-milestone-green shadow-md transition-all duration-300 cursor-pointer disabled:bg-slate-400 disabled:cursor-not-allowed"
+                          title={!isWalletConnected ? "Connect wallet firstly" : undefined}
+                        >
                     {!isWalletConnected ? (
                       <>
                         <Wallet size={14} />
@@ -787,6 +800,9 @@ export const NgoDashboard: React.FC = () => {
                       </>
                     )}
                   </button>
+                      </>
+                    );
+                  })()}
                 </form>
               </div>
             </div>

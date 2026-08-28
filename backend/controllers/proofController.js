@@ -1,6 +1,7 @@
 const Proof = require('../models/Proof');
 const Campaign = require('../models/Campaign');
 const { uploadFileToIPFS } = require('../services/ipfsService');
+const Donation = require('../models/Donation');
 
 /**
  * @desc    Upload an expenditure or milestone completion proof document
@@ -59,6 +60,13 @@ exports.createProof = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Please specify a valid positive requested amount',
+      });
+    }
+
+    if ((campaign.raisedAmount || 0) < 0.05) {
+      return res.status(400).json({
+        success: false,
+        message: 'The campaign must have raised at least 0.05 ETH before you can claim funds.',
       });
     }
 
@@ -334,12 +342,35 @@ exports.approveProof = async (req, res) => {
     }
 
     proof.isApproved = true;
-    if (req.body.payoutTxHash) {
-      proof.payoutTxHash = req.body.payoutTxHash;
-    } else if (!proof.payoutTxHash) {
-      // Default standard on-chain release transaction hash mock fallback if none specified
-      proof.payoutTxHash = `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
+    if (!req.body.payoutTxHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'A real blockchain transaction hash must be provided to approve this proof.',
+      });
     }
+
+    proof.isApproved = true;
+    proof.payoutTxHash = req.body.payoutTxHash;
+
+    // FIFO Allocation Logic
+    const requestedAmount = proof.amountRequested;
+    let amountToAllocate = requestedAmount;
+
+    // Fetch all donations for this campaign in chronological order
+    const donations = await Donation.find({ campaignId: proof.campaignId }).sort({ date: 1, createdAt: 1 });
+
+    for (const donation of donations) {
+      if (amountToAllocate <= 0) break;
+      const unallocated = donation.amount - (donation.allocatedAmount || 0);
+      if (unallocated > 0) {
+        // We use Math.min and ensure we don't allocate more than unallocated
+        const allocateFromThis = Math.min(unallocated, amountToAllocate);
+        donation.allocatedAmount = (donation.allocatedAmount || 0) + allocateFromThis;
+        amountToAllocate -= allocateFromThis;
+        await donation.save();
+      }
+    }
+
     await proof.save();
 
     const campaign = await Campaign.findById(proof.campaignId);
@@ -350,7 +381,7 @@ exports.approveProof = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Proof document approved successfully!',
+      message: 'Proof document approved successfully! Allocation recorded.',
       data: proof,
     });
 

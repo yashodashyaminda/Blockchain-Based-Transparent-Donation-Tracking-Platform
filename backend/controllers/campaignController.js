@@ -315,29 +315,49 @@ exports.createCampaign = async (req, res) => {
 };
 
 exports.getCampaigns = async (req, res) => {
-  try {
-    const campaigns = await Campaign.find().populate({
-      path: 'ngoId',
-      select: 'name email walletAddress isVerified',
-    });
-    return res.status(200).json({ success: true, count: campaigns.length, data: campaigns });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
-
-exports.getCampaignById = async (req, res) => {
-  try {
-    const campaign = await Campaign.findById(req.params.id).populate({
-      path: 'ngoId',
-      select: 'name email walletAddress isVerified',
-    });
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-    return res.status(200).json({ success: true, data: campaign });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
+    try {
+      const campaigns = await Campaign.find().populate({
+        path: 'ngoId',
+        select: 'name email walletAddress isVerified',
+      });
+      
+      const Donation = require('../models/Donation');
+      for (let campaign of campaigns) {
+        const donations = await Donation.find({ campaignId: campaign._id });
+        const totalRaised = donations.reduce((sum, d) => sum + d.amount, 0);
+        if (Math.abs(campaign.raisedAmount - totalRaised) > 0.0001) {
+          campaign.raisedAmount = totalRaised;
+          await campaign.save();
+        }
+      }
+      
+      return res.status(200).json({ success: true, count: campaigns.length, data: campaigns });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+  };
+  
+  exports.getCampaignById = async (req, res) => {
+    try {
+      const campaign = await Campaign.findById(req.params.id).populate({
+        path: 'ngoId',
+        select: 'name email walletAddress isVerified',
+      });
+      if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
+      
+      const Donation = require('../models/Donation');
+      const donations = await Donation.find({ campaignId: campaign._id });
+      const totalRaised = donations.reduce((sum, d) => sum + d.amount, 0);
+      if (Math.abs(campaign.raisedAmount - totalRaised) > 0.0001) {
+        campaign.raisedAmount = totalRaised;
+        await campaign.save();
+      }
+      
+      return res.status(200).json({ success: true, data: campaign });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+  };
 
 exports.updateCampaign = async (req, res) => {
   try {

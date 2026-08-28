@@ -43,7 +43,13 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
   // Fund Map active project selection
   const [mapCampaignId, setMapCampaignId] = useState<string>('');
   const [selectedNodeIndex, setSelectedNodeIndex] = useState<number>(0);
+  const [carouselIndex, setCarouselIndex] = useState<number>(0);
   const [campaignProofs, setCampaignProofs] = useState<any[]>([]);
+
+  // Reset carousel when node changes
+  useEffect(() => {
+    setCarouselIndex(0);
+  }, [selectedNodeIndex]);
 
   // Set default map campaign ID once campaigns are loaded
   useEffect(() => {
@@ -147,15 +153,17 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       p.milestonePhase && isPhaseMatch(p.milestonePhase, phase.title)
     );
 
-    const approvedProof = matchingProofs.find((p: any) => p.isApproved);
-    const pendingProof = matchingProofs.find((p: any) => !p.isApproved && !p.isRejected);
+    const approvedProofs = matchingProofs.filter((p: any) => p.isApproved);
+    const pendingProofs = matchingProofs.filter((p: any) => !p.isApproved && !p.isRejected);
+    const allRelevantProofs = [...approvedProofs, ...pendingProofs];
+
+    const approvedProof = approvedProofs[0];
+    const pendingProof = pendingProofs[0];
     const activeProof = approvedProof || pendingProof || matchingProofs[0];
 
     // Sum of requested/released amounts from NGO proof claims
     const totalAmountRequested = matchingProofs.reduce((sum: number, p: any) => sum + (p.amountRequested || 0), 0);
-    const totalAmountApproved = matchingProofs
-      .filter((p: any) => p.isApproved)
-      .reduce((sum: number, p: any) => sum + (p.amountRequested || 0), 0);
+    const totalAmountApproved = approvedProofs.reduce((sum: number, p: any) => sum + (p.amountRequested || 0), 0);
 
     const displayRequested = approvedProof
       ? totalAmountApproved
@@ -184,13 +192,14 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       isApproved: Boolean(approvedProof),
       isPending: Boolean(pendingProof),
       activeProof,
+      allRelevantProofs,
       proofText,
       transactionHash,
       ngoWallet: ngoWallet || '',
     };
   });
 
-  // Dynamic FIFO Calculation for selectedNodeIndex against campaign donations & payouts
+  // Dynamic Calculation for campaign donations & payouts
   const getFifoAuditData = (nodeIdx: number) => {
     if (!isWalletConnected || !walletAddress || !selectedMapCampaign) {
       return {
@@ -200,14 +209,13 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       };
     }
 
-    const campaignDonations = transactions
-      .filter(t => t.campaignId === selectedMapCampaign.id)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
+    const campaignDonations = transactions.filter(t => t.campaignId === selectedMapCampaign.id);
     const donorDonations = campaignDonations.filter(
       t => t.donorAddress && t.donorAddress.toLowerCase() === walletAddress.toLowerCase()
     );
-    const donorTotalContribution = donorDonations.reduce((acc, curr) => acc + curr.amount, 0);
+
+    const donorTotalContribution = donorDonations.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const donorTotalAllocated = donorDonations.reduce((acc, curr) => acc + (curr.allocatedAmount || 0), 0);
 
     if (donorTotalContribution === 0) {
       return {
@@ -217,72 +225,10 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
       };
     }
 
-    const currentNode = mapPhases[nodeIdx];
-
-    // Issue 1 Fix: Strict Admin Approval Guard
-    // If proof is NOT approved by Admin, allocatedAmount MUST be 0.0000 ETH and status strictly "100% LOCKED IN ESCROW"
-    if (!currentNode || !currentNode.isApproved) {
-      return {
-        allocatedAmount: 0,
-        remainingEscrow: donorTotalContribution,
-        badgeStatus: currentNode?.isPending ? 'PENDING ADMIN AUDIT' : '100% LOCKED IN ESCROW'
-      };
-    }
-
-    let cumulativeMs = 0;
-    const msBounds = mapPhases.map(m => {
-      const start = cumulativeMs;
-      const end = start + m.amount;
-      cumulativeMs = end;
-      return { start, end, amount: m.amount };
-    });
-
-    let cumulativePool = 0;
-    const donorIntervals: { start: number; end: number; isConnectedDonor: boolean }[] = [];
-
-    campaignDonations.forEach(d => {
-      const start = cumulativePool;
-      const end = start + d.amount;
-      cumulativePool = end;
-      donorIntervals.push({
-        start,
-        end,
-        isConnectedDonor: Boolean(d.donorAddress && d.donorAddress.toLowerCase() === walletAddress.toLowerCase())
-      });
-    });
-
-    const quarterVal = parseFloat((targetVal * 0.25).toFixed(4));
-    const targetMs = msBounds[nodeIdx] || { start: nodeIdx * quarterVal, end: (nodeIdx + 1) * quarterVal };
-    let allocatedAmount = 0;
-
-    donorIntervals.forEach(interval => {
-      if (interval.isConnectedDonor) {
-        const overlapStart = Math.max(interval.start, targetMs.start);
-        const overlapEnd = Math.min(interval.end, targetMs.end);
-        const overlap = Math.max(0, overlapEnd - overlapStart);
-        allocatedAmount += overlap;
-      }
-    });
-
-    let cumulativeAllocatedUpToNode = 0;
-    for (let k = 0; k <= nodeIdx; k++) {
-      const ms = msBounds[k] || { start: k * quarterVal, end: (k + 1) * quarterVal };
-      if (mapPhases[k]?.isApproved) {
-        donorIntervals.forEach(interval => {
-          if (interval.isConnectedDonor) {
-            const overlapStart = Math.max(interval.start, ms.start);
-            const overlapEnd = Math.min(interval.end, ms.end);
-            const overlap = Math.max(0, overlapEnd - overlapStart);
-            cumulativeAllocatedUpToNode += overlap;
-          }
-        });
-      }
-    }
-
-    const remainingEscrow = Math.max(0, donorTotalContribution - cumulativeAllocatedUpToNode);
+    const remainingEscrow = Math.max(0, donorTotalContribution - donorTotalAllocated);
 
     let badgeStatus = '100% LOCKED IN ESCROW';
-    if (allocatedAmount > 0) {
+    if (donorTotalAllocated > 0) {
       if (remainingEscrow === 0) {
         badgeStatus = 'FULLY UTILIZED';
       } else {
@@ -291,7 +237,7 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
     }
 
     return {
-      allocatedAmount,
+      allocatedAmount: donorTotalAllocated,
       remainingEscrow,
       badgeStatus
     };
@@ -688,62 +634,97 @@ export const DonorDashboard: React.FC<DonorDashboardProps> = ({ preSelectedCampa
                             Settlement Information
                           </h4>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
-                          activeNode.isApproved && activeNode.transactionHash
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            : activeNode.activeProof
-                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                            : 'bg-slate-200 text-slate-600 border border-slate-300'
-                        }`}>
-                          {activeNode.isApproved && activeNode.transactionHash
-                            ? 'SETTLED ON-CHAIN'
-                            : activeNode.activeProof
-                            ? 'AWAITING ADMIN APPROVAL'
-                            : 'PHASE LOCKED'}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-3.5">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-semibold">NGO Recipient Wallet</span>
-                          {activeNode.ngoWallet && activeNode.ngoWallet.startsWith('0x') ? (
-                            <span
-                              className="font-mono text-slate-800 font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px]"
-                              title={activeNode.ngoWallet}
-                            >
-                              {activeNode.ngoWallet.length > 12 ? `${activeNode.ngoWallet.slice(0, 6)}...${activeNode.ngoWallet.slice(-4)}` : activeNode.ngoWallet}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/60">
-                              Pending NGO Claim Submission
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-semibold">Blockchain Payout Transaction Hash</span>
-                          {activeNode.isApproved && activeNode.transactionHash ? (
-                            <a
-                              href={`https://sepolia.etherscan.io/tx/${activeNode.transactionHash}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-mono text-trust-blue hover:underline font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px] truncate max-w-[180px] flex items-center gap-1 cursor-pointer shadow-2xs"
-                              title={`View on Explorer: ${activeNode.transactionHash}`}
-                            >
-                              <span>{activeNode.transactionHash.slice(0, 8)}...{activeNode.transactionHash.slice(-6)}</span>
-                              <LinkIcon size={11} className="shrink-0 text-trust-blue" />
-                            </a>
-                          ) : activeNode.activeProof ? (
-                            <span className="text-amber-700 font-bold italic text-[11px] bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60">
-                              Awaiting Admin Release
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/60">
-                              Awaiting Proof Upload
-                            </span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                            activeNode.isApproved && activeNode.transactionHash
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : activeNode.activeProof
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-slate-200 text-slate-600 border border-slate-300'
+                          }`}>
+                            {activeNode.isApproved && activeNode.transactionHash
+                              ? 'SETTLED ON-CHAIN'
+                              : activeNode.activeProof
+                              ? 'AWAITING ADMIN APPROVAL'
+                              : 'PHASE LOCKED'}
+                          </span>
+                          {activeNode.allRelevantProofs && activeNode.allRelevantProofs.length > 1 && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <button
+                                onClick={() => setCarouselIndex((prev) => Math.max(0, prev - 1))}
+                                disabled={carouselIndex === 0}
+                                className="p-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-[10px] cursor-pointer"
+                              >
+                                ←
+                              </button>
+                              <span className="text-[10px] font-bold text-slate-500">
+                                {carouselIndex + 1} / {activeNode.allRelevantProofs.length}
+                              </span>
+                              <button
+                                onClick={() => setCarouselIndex((prev) => Math.min(activeNode.allRelevantProofs.length - 1, prev + 1))}
+                                disabled={carouselIndex === activeNode.allRelevantProofs.length - 1}
+                                className="p-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-[10px] cursor-pointer"
+                              >
+                                →
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
+
+                      {(() => {
+                        const displayedProof = activeNode.allRelevantProofs && activeNode.allRelevantProofs.length > 0
+                          ? activeNode.allRelevantProofs[carouselIndex]
+                          : activeNode.activeProof;
+                        
+                        const displayedTxHash = displayedProof?.payoutTxHash || displayedProof?.transactionHash || activeNode.transactionHash;
+                        const displayedWallet = displayedProof?.ngoWallet || activeNode.ngoWallet;
+                        const isDisplayedApproved = displayedProof?.isApproved || (displayedProof === undefined && activeNode.isApproved);
+
+                        return (
+                          <div className="flex flex-col gap-3.5">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500 font-semibold">NGO Recipient Wallet</span>
+                              {displayedWallet && displayedWallet.startsWith('0x') ? (
+                                <span
+                                  className="font-mono text-slate-800 font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px]"
+                                  title={displayedWallet}
+                                >
+                                  {displayedWallet.length > 12 ? `${displayedWallet.slice(0, 6)}...${displayedWallet.slice(-4)}` : displayedWallet}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/60">
+                                  Pending NGO Claim Submission
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500 font-semibold">Blockchain Payout Transaction Hash</span>
+                              {isDisplayedApproved && displayedTxHash ? (
+                                <a
+                                  href={`https://sepolia.etherscan.io/tx/${displayedTxHash}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-mono text-trust-blue hover:underline font-bold bg-white px-2.5 py-1 rounded-xl border border-slate-200 text-[11px] truncate max-w-[180px] flex items-center gap-1 cursor-pointer shadow-2xs"
+                                  title={`View on Explorer: ${displayedTxHash}`}
+                                >
+                                  <span>{displayedTxHash.slice(0, 8)}...{displayedTxHash.slice(-6)}</span>
+                                  <LinkIcon size={11} className="shrink-0 text-trust-blue" />
+                                </a>
+                              ) : displayedProof ? (
+                                <span className="text-amber-700 font-bold italic text-[11px] bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60">
+                                  Awaiting Admin Release
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px] bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/60">
+                                  Awaiting Proof Upload
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   </div>

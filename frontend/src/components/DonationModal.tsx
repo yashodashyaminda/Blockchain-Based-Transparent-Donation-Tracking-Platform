@@ -9,9 +9,10 @@ interface DonationModalProps {
 }
 
 export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, onClose }) => {
-  const { donateToCampaign, isWalletConnected, walletAddress, walletBalance, connectWallet, refreshBalance } = useWeb3();
+  const { donateToCampaign, isWalletConnected, walletAddress, walletBalance, connectWallet, refreshBalance, estimateDonationGasFee } = useWeb3();
   const [donationAmount, setDonationAmount] = useState('0.01');
-  const [estimatedGasFee] = useState('0.00021');
+  const [estimatedGasFee, setEstimatedGasFee] = useState('0.00021');
+  const [isEstimatingGas, setIsEstimatingGas] = useState(false);
   const [isDonating, setIsDonating] = useState(false);
   const [donationSuccess, setDonationSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -37,8 +38,35 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
     };
   }, [selectedCampaign?.id, isWalletConnected, walletAddress, refreshBalance]);
 
+  // Estimate Gas Fee whenever donationAmount changes
+  useEffect(() => {
+    let isMounted = true;
+    const updateGasFee = async () => {
+      if (!selectedCampaign || !isWalletConnected || !walletAddress) return;
+      const numAmount = parseFloat(donationAmount) || 0;
+      if (numAmount <= 0) return;
+      
+      setIsEstimatingGas(true);
+      const fee = await estimateDonationGasFee(selectedCampaign.id, numAmount);
+      if (isMounted) {
+        setEstimatedGasFee(fee);
+        setIsEstimatingGas(false);
+      }
+    };
+    
+    // Debounce the gas estimation slightly to avoid excessive calls
+    const timeoutId = setTimeout(() => {
+      updateGasFee();
+    }, 500);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [donationAmount, selectedCampaign?.id, isWalletConnected, walletAddress, estimateDonationGasFee]);
+
   const numericAmount = parseFloat(donationAmount) || 0;
-  const numericGas = parseFloat(estimatedGasFee) || 0.00021;
+  const numericGas = parseFloat(estimatedGasFee) || 0;
   const totalEthRequired = numericAmount + numericGas;
   const currentBalance = parseFloat(walletBalance) || 0;
   const hasEnoughBalance = currentBalance >= totalEthRequired;
@@ -205,7 +233,16 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
 
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500">Estimated Gas Fee</span>
-                    <span className="text-slate-600 font-semibold">{estimatedGasFee} ETH</span>
+                    <div className="flex items-center gap-1.5">
+                      {isEstimatingGas ? (
+                        <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                          <RefreshCw size={10} className="animate-spin text-trust-blue" />
+                          <span>Estimating...</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-600 font-semibold">{estimatedGasFee} ETH</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex justify-between items-center text-xs font-bold pt-1 text-slate-900">

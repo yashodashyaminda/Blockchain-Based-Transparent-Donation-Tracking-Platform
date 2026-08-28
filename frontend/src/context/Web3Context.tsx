@@ -43,6 +43,7 @@ export interface Transaction {
   hash: string;
   date: string;
   amount: number;
+  allocatedAmount: number;
   donorAddress: string;
   campaignId: string;
   campaignName: string;
@@ -83,10 +84,11 @@ export interface Web3ContextType {
   deleteCampaign: (id: string) => void;
   editCampaign: (id: string, updated: Partial<Campaign>) => void;
   donateToCampaign: (campaignId: string, amount: number) => Promise<{ success: boolean; hash?: string; error?: string }>;
+  estimateDonationGasFee: (campaignId: string, amountEth: number) => Promise<string>;
 
   // Milestones & Proofs
   addMilestoneProof: (campaignId: string, milestoneId: string, proofText: string, proofDocName: string) => void;
-  validateMilestoneProof: (campaignId: string, milestoneId: string) => Promise<void>;
+  validateMilestoneProof: (campaignId: string, milestoneId: string, phaseIndex: number, ngoWallet: string, amountEth: number) => Promise<string | undefined>;
 
   // Transaction Ledger
   transactions: Transaction[];
@@ -281,6 +283,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           hash: d.transactionHash,
           date: d.date ? new Date(d.date).toISOString().slice(0, 19).replace('T', ' ') : new Date().toISOString().slice(0, 19).replace('T', ' '),
           amount: d.amount,
+          allocatedAmount: d.allocatedAmount || 0,
           donorAddress: d.donorId?.walletAddress || d.donorAddress || targetAddr,
           campaignId: d.campaignId?._id || d.campaignId,
           campaignName: d.campaignId?.title || 'Transparent Campaign'
@@ -667,6 +670,45 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // 🚀 Estimate Gas Fee for Donation
+  const estimateDonationGasFee = async (campaignId: string, amountEth: number): Promise<string> => {
+    if (!isWalletConnected || !walletAddress || !CONTRACT_ADDRESS || typeof window === 'undefined' || !(window as any).ethereum) {
+      return '0.00021'; // Default fallback
+    }
+    
+    try {
+      let numericCampaignId: bigint;
+      const cleanHex = campaignId.replace(/[^0-9a-fA-F]/g, '');
+      if (cleanHex.length >= 24) {
+        numericCampaignId = BigInt("0x" + cleanHex.slice(0, 24));
+      } else if (cleanHex.length > 0) {
+        numericCampaignId = BigInt("0x" + cleanHex.padStart(24, '0'));
+      } else {
+        let hexStr = '';
+        for (let i = 0; i < campaignId.length; i++) {
+          hexStr += campaignId.charCodeAt(i).toString(16);
+        }
+        numericCampaignId = BigInt("0x" + hexStr.slice(0, 24).padStart(24, '0'));
+      }
+
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      const valueWei = ethers.parseEther(amountEth.toString());
+      
+      const gasLimit = await contract.donate.estimateGas(numericCampaignId, { value: valueWei });
+      const feeData = await provider.getFeeData();
+      const gasPrice = feeData.gasPrice || feeData.maxFeePerGas || ethers.parseUnits('1', 'gwei'); // Default to 1 gwei if unknown
+      
+      const estimatedFeeWei = gasLimit * gasPrice;
+      return parseFloat(ethers.formatEther(estimatedFeeWei)).toFixed(6);
+    } catch (error) {
+      console.warn('Dynamic gas estimation failed, returning default:', error);
+      return '0.00021';
+    }
+  };
+
   // 🚀 Real Smart Contract Execution (Ethers.js v6)
   const donateToCampaign = async (campaignId: string, amountEth: number): Promise<{ success: boolean; hash?: string; error?: string }> => {
     if (!isWalletConnected || !walletAddress) {
@@ -803,28 +845,65 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  const validateMilestoneProof = async (campaignId: string, milestoneId: string) => {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  const validateMilestoneProof = async (campaignId: string, milestoneId: string, phaseIndex: number, ngoWallet: string, amountEth: number): Promise<string | undefined> => {
+    if (!isWalletConnected || !walletAddress) {
+      throw new Error("Wallet not connected");
+    }
 
-    setCampaigns(prev =>
-      prev.map(c => {
-        if (c.id === campaignId) {
-          const updatedMilestones = c.milestones.map(m => {
-            if (m.id === milestoneId) {
-              return {
-                ...m,
-                status: 'Released',
-                transactionHash: txHash
-              } as Milestone;
-            }
-            return m;
-          });
-          return { ...c, milestones: updatedMilestones };
-        }
-        return c;
-      })
-    );
+    try {
+      const isCorrectNetwork = await ensureHardhatNetwork();
+      if (!isCorrectNetwork) {
+        throw new Error("Please switch MetaMask to the local Hardhat network (1337).");
+      }
+
+      if (typeof window === 'undefined' || !(window as any).ethereum) {
+        throw new Error("MetaMask is not installed.");
+      }
+
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      const exactAmountStr = Number(amountEth).toFixed(6);
+      const amountWei = ethers.parseEther(exactAmountStr);
+
+      // The contract expects campaignId as a uint256. If it's a MongoDB ID, you might need a mapping,
+      // but assuming the contract uses a numeric representation or we fallback to 0 if it fails parsing:
+      const numericCampaignId = parseInt(campaignId.replace(/[^0-9]/g, '')) || 0;
+
+      const tx = await contract.releaseMilestonePayout(
+        numericCampaignId,
+        phaseIndex,
+        ngoWallet,
+        amountWei
+      );
+
+      const receipt = await tx.wait();
+
+      setCampaigns(prev =>
+        prev.map(c => {
+          if (c.id === campaignId) {
+            const updatedMilestones = c.milestones.map(m => {
+              if (m.id === milestoneId) {
+                return {
+                  ...m,
+                  status: 'Released',
+                  transactionHash: receipt.hash
+                } as Milestone;
+              }
+              return m;
+            });
+            return { ...c, milestones: updatedMilestones };
+          }
+          return c;
+        })
+      );
+
+      return receipt.hash;
+    } catch (error: any) {
+      console.error("Failed to release payout on-chain:", error);
+      throw error;
+    }
   };
 
   const resetState = () => {
@@ -868,6 +947,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteCampaign,
         editCampaign,
         donateToCampaign,
+        estimateDonationGasFee,
         addMilestoneProof,
         validateMilestoneProof,
         transactions,

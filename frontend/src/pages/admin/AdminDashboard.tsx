@@ -239,11 +239,23 @@ export const AdminDashboard: React.FC = () => {
     setIsContractExecuting(true);
 
     try {
-      // 1. Backend PUT call to approve/verify the proof
-      await axiosInstance.put(`/proofs/${milestoneId}/approve`);
+      const release = pendingMilestoneReleases.find(r => r.milestone.id === milestoneId);
+      if (!release) throw new Error("Milestone details not found.");
+      
+      const ngoWallet = release.milestone.ngoWallet;
+      if (!ngoWallet) throw new Error("NGO Wallet address is missing from the proof.");
 
-      // 2. Trigger smart contract payout execution from Web3 context
-      await validateMilestoneProof(campaignId, milestoneId);
+      const amountEth = release.milestone.amount;
+      
+      // Determine phase index (0-indexed)
+      const phaseMatch = release.milestone.title.match(/Phase (\d)/i);
+      const phaseIndex = phaseMatch ? parseInt(phaseMatch[1]) - 1 : 0;
+
+      // 1. Trigger smart contract payout execution from Web3 context
+      const txHash = await validateMilestoneProof(campaignId, milestoneId, phaseIndex, ngoWallet, amountEth);
+
+      // 2. Backend PUT call to approve/verify the proof, passing the real hash
+      await axiosInstance.put(`/proofs/${milestoneId}/approve`, { payoutTxHash: txHash });
 
       setIsContractExecuting(false);
       setContractSuccess(true);
@@ -258,8 +270,9 @@ export const AdminDashboard: React.FC = () => {
         setVerifyingMilestoneId('');
       }, 3000);
     } catch (err: any) {
+      console.error(err);
       setIsContractExecuting(false);
-      alert(err.response?.data?.message || 'Failed to approve milestone proof');
+      alert(err.response?.data?.message || err.message || 'Failed to approve milestone proof');
     }
   };
 
