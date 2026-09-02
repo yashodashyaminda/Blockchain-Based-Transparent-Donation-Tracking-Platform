@@ -38,8 +38,8 @@ exports.createProof = async (req, res) => {
       });
     }
 
-    // 4. Check if the campaign's status is Active
-    if (campaign.status !== 'Active') {
+    // 4. Check if the campaign's status is Active or Funded
+    if (campaign.status !== 'Active' && campaign.status !== 'Funded') {
       return res.status(400).json({
         success: false,
         message: 'Cannot upload proof for a campaign that is not active.',

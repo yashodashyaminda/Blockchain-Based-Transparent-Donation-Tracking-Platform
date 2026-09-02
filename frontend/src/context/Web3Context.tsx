@@ -543,7 +543,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const formattedName = donorName.charAt(0).toUpperCase() + donorName.slice(1);
 
     const profile = {
-      name: formattedName || 'Sarah Connor',
+      name: formattedName,
       email: cleanEmail,
       wallet: ''
     };

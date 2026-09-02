@@ -71,6 +71,9 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
   const currentBalance = parseFloat(walletBalance) || 0;
   const hasEnoughBalance = currentBalance >= totalEthRequired;
 
+  const remainingTarget = selectedCampaign ? Math.max(0, selectedCampaign.target - selectedCampaign.raised) : 0;
+  const isExceedingTarget = selectedCampaign ? numericAmount > remainingTarget : false;
+
   const isGoalReached = selectedCampaign
     ? selectedCampaign.raised >= selectedCampaign.target || (selectedCampaign as any).status === 'Funded' || (selectedCampaign as any).status === 'Completed'
     : false;
@@ -89,7 +92,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!selectedCampaign || numericAmount <= 0 || isGoalReached) return;
+    if (!selectedCampaign || numericAmount <= 0 || isGoalReached || isExceedingTarget) return;
 
     if (!isWalletConnected) {
       await connectWallet();
@@ -171,6 +174,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                     required
                     step="0.0001"
                     min="0.0001"
+                    max={selectedCampaign ? parseFloat(remainingTarget.toFixed(4)) : undefined}
                     disabled={isGoalReached || isDonating || donationSuccess}
                     value={donationAmount}
                     onChange={(e) => {
@@ -259,6 +263,15 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
                   <span className="leading-snug">{errorMessage}</span>
                 </div>
               )}
+              
+              {isExceedingTarget && !isGoalReached && !errorMessage && (
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+                  <AlertTriangle size={16} className="shrink-0 text-red-500 mt-0.5" />
+                  <span className="leading-snug">
+                    Donation exceeds the campaign target. Only {remainingTarget.toFixed(4)} ETH more is needed.
+                  </span>
+                </div>
+              )}
 
               {!isWalletConnected && !hasEnoughBalance && !isGoalReached && (
                 <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
@@ -298,8 +311,8 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
               ) : (
                 <button
                   type="submit"
-                  disabled={isDonating || donationSuccess || !hasEnoughBalance || numericAmount <= 0}
-                  className={`w-full py-4 rounded-xl font-heading text-xs font-bold text-white shadow-md transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${!hasEnoughBalance
+                  disabled={isDonating || donationSuccess || !hasEnoughBalance || numericAmount <= 0 || isExceedingTarget}
+                  className={`w-full py-4 rounded-xl font-heading text-xs font-bold text-white shadow-md transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${!hasEnoughBalance || isExceedingTarget
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-300 shadow-none'
                     : donationSuccess
                       ? 'bg-emerald-600 text-white'

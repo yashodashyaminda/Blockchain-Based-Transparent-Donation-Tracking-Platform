@@ -9,7 +9,8 @@ const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
 
 const contractABI = [
     "event Donated(address indexed donor, uint256 indexed campaignId, uint256 amount)",
-    "event FundsReleased(uint256 indexed campaignId, address indexed ngoAddress, uint256 totalAmount, uint256 feePaid, uint256 netAmount)"
+    "event FundsReleased(uint256 indexed campaignId, address indexed ngoAddress, uint256 totalAmount, uint256 feePaid, uint256 netAmount)",
+    "event MilestonePayoutReleased(uint256 indexed campaignId, uint256 indexed phaseIndex, address indexed ngoWallet, uint256 amountReleased, uint256 feeDeducted)"
 ];
 
 const listenToBlockchainEvents = () => {
@@ -24,13 +25,20 @@ const listenToBlockchainEvents = () => {
         // This new piece stops the backend from crashing if the Blockchain is off:
         if (provider.websocket) {
             provider.websocket.on('error', (err) => {
-                console.log(`⚠️ Blockchain is offline. Running Backend in Web2-only mode!`);
+                // Suppress raw unhandled websocket errors to prevent crashing
             });
         }
 
+        // Robustly check if the blockchain is active
+        provider.getNetwork().then(() => {
+            console.log(`✅ Blockchain is online! Backend successfully switched to Web3 mode.`);
+        }).catch(() => {
+            console.log(`⚠️ Blockchain is offline. Running Backend in Web2-only mode!`);
+        });
+
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
 
-        console.log(`🔌 Web3 Listener started via WebSockets. Strictly listening to contract Donated event at: ${CONTRACT_ADDRESS}`);
+        console.log(`🔌 Web3 Listener started via WebSockets. Strictly listening to contract events at: ${CONTRACT_ADDRESS}`);
 
         contract.on("Donated", async (donorAddress, campaignIdBigInt, amountBigInt, event) => {
             try {
@@ -81,9 +89,7 @@ const listenToBlockchainEvents = () => {
                 });
 
                 campaign.raisedAmount += parseFloat(amountInEther);
-                if (campaign.raisedAmount >= campaign.targetAmount) {
-                    campaign.status = 'Funded';
-                }
+                // Status remains Active so NGO can continue to claim funds
                 await campaign.save();
 
                 console.log(`✅ Donation saved to DB! Campaign ${campaign.title} updated.`);
