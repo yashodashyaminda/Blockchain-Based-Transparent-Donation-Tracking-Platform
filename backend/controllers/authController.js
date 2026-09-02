@@ -9,8 +9,8 @@ const { uploadFileToIPFS } = require('../services/ipfsService');
  * @returns {string} - Signed JWT token
  */
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'chaintrust_secret', {
-    expiresIn: process.env.JWT_EXPIRE || '1h', // Expires in 1 hour by default
+  return jwt.sign({ id }, process.env.JWT_SECRET || {
+    expiresIn: process.env.JWT_EXPIRE
   });
 };
 
@@ -247,10 +247,10 @@ exports.verifyNGO = async (req, res) => {
  */
 exports.getUsers = async (req, res) => {
   try {
-    // URL එකෙන් එන ෆිල්ටර්ස් අල්ලගන්නවා (උදා: role='NGO', isVerified='false')
+    // URL coming data filter (Ex: role='NGO', isVerified='false')
     const query = { ...req.query };
 
-    // DB එකෙන් අදාළ යූසර්ස්ලව ගන්නවා (Password එක යවන්නේ නෑ Security නිසා)
+    // take he corrct user from DB (dont't send Password )
     const users = await User.find(query).select('-password');
 
     return res.status(200).json({

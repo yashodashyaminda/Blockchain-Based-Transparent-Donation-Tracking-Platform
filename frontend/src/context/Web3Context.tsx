@@ -149,7 +149,7 @@ export const ensureHardhatNetwork = async (): Promise<boolean> => {
   return false;
 };
 
-// All Initial Data Set to Empty Arrays (Mock Data Removed)
+// All Initial Data Set to Empty Arrays
 const initialNGOs: NGO[] = [];
 const initialCampaigns: Campaign[] = [];
 const initialTransactions: Transaction[] = [];
@@ -574,8 +574,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       email: data.email,
       registrationNumber: data.registrationNumber,
       contactInfo: data.contactInfo,
-      documentName: data.documentName || 'verification_document.pdf',
-      documentUrl: data.documentUrl || '/assets/images/3.png',
+      documentName: data.documentName,
+      documentUrl: data.documentUrl,
       isVerified: false,
       wallet: '',
     };
@@ -630,7 +630,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       name,
       category,
       description,
-      image: image || '/assets/images/4.png',
+      image: image,
       target,
       raised: 0,
       ngoId,
@@ -839,7 +839,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
                 ...m,
                 status: 'Approved',
                 proofText,
-                proofDoc: proofDocName || 'receipt_ipfs.pdf'
+                proofDoc: proofDocName
               } as Milestone;
             }
             return m;

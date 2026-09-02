@@ -56,10 +56,10 @@ process.on('unhandledRejection', (err, promise) => {
   server.close(() => process.exit(1));
 });
 
-// server.js ඇතුළේ:
+// in server.js :
 const { listenToBlockchainEvents } = require('./services/web3Service');
 
-// MongoDB connect වුනාට පස්සේ මේක call කරන්න
+// MongoDB connect after call it
 mongoose.connection.once('open', async () => {
   console.log('MongoDB Connected');
 

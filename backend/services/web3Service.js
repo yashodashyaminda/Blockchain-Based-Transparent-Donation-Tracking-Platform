@@ -4,7 +4,7 @@ const Campaign = require('../models/Campaign');
 const Donation = require('../models/Donation');
 const User = require('../models/User');
 
-const WS_URL = process.env.WS_URL || 'ws://127.0.0.1:8545/';
+const WS_URL = process.env.WS_URL;
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
 
 const contractABI = [
@@ -21,7 +21,7 @@ const listenToBlockchainEvents = () => {
     try {
         const provider = new ethers.WebSocketProvider(WS_URL);
 
-        // 👉 මෙන්න මේ අලුත් කෑල්ලෙන් තමයි Blockchain එක Off වෙලා තිබ්බොත් Backend එක Crash වෙන එක නවත්තන්නේ:
+        // This new piece stops the backend from crashing if the Blockchain is off:
         if (provider.websocket) {
             provider.websocket.on('error', (err) => {
                 console.log(`⚠️ Blockchain is offline. Running Backend in Web2-only mode!`);
@@ -112,7 +112,7 @@ const listenToBlockchainEvents = () => {
         });
 
     } catch (error) {
-        // Fallback එකක් විදිහට Provider එක හදාගන්න බැරි වුණොත් මේක අල්ලගන්නවා
+        // Fallback 
         console.log(`⚠️ Could not connect to Blockchain. Running Backend in Web2-only mode!`);
     }
 };

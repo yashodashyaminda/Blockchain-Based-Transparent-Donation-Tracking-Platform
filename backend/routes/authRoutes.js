@@ -30,10 +30,10 @@ router.post('/login', login);
 // Route to request password reset token/mail stub
 router.post('/forgotpassword', forgotPassword);
 
-// 👉 Admin Route: Approve / Verify pending NGO account
+// Admin Route: Approve / Verify pending NGO account
 router.put('/verify-ngo/:id', verifyToken, checkRole(['Admin']), verifyNGO);
 
-// 👉 Admin Route: Get all users
+// Admin Route: Get all users
 router.get('/users', verifyToken, checkRole(['Admin']), getUsers);
 
 router.put('/reject-ngo/:id', verifyToken, checkRole(['Admin']), rejectNGO);

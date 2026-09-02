@@ -252,12 +252,12 @@ export const AdminDashboard: React.FC = () => {
     try {
       const release = pendingMilestoneReleases.find(r => r.milestone.id === milestoneId);
       if (!release) throw new Error("Milestone details not found.");
-      
+
       const ngoWallet = release.milestone.ngoWallet;
       if (!ngoWallet) throw new Error("NGO Wallet address is missing from the proof.");
 
       const amountEth = release.milestone.amount;
-      
+
       // Determine phase index (0-indexed)
       const phaseMatch = release.milestone.title.match(/Phase (\d)/i);
       const phaseIndex = phaseMatch ? parseInt(phaseMatch[1]) - 1 : 0;
@@ -490,7 +490,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* POST-LOGIN WEB3 WALLET BINDING BANNER */}
-        {!isWalletConnected && activeSubTab !== 'metrics' && (
+        {!isWalletConnected && activeSubTab === 'approvals' && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -752,7 +752,7 @@ export const AdminDashboard: React.FC = () => {
                           <div className="flex gap-3 mt-1">
                             {/* Verify & Release Funds Button */}
                             <button
-                            onClick={() => handleVerifyMilestone(selectedRelease.campaign.id, selectedRelease.milestone.id)}
+                              onClick={() => handleVerifyMilestone(selectedRelease.campaign.id, selectedRelease.milestone.id)}
                               disabled={isContractExecuting || !isWalletConnected}
                               title={!isWalletConnected ? "Please connect your Admin Web3 wallet to verify and release milestone funds" : undefined}
                               className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-950 hover:bg-emerald-600 disabled:bg-slate-400 disabled:cursor-not-allowed shadow-sm transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5"
@@ -1039,8 +1039,8 @@ export const AdminDashboard: React.FC = () => {
                   <div className="bg-white rounded-3xl border border-slate-100 p-6 flex items-center justify-between shadow-sm relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-r from-trust-blue/5 to-transparent pointer-events-none" />
                     <div>
-                      <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Total Processed (USD)</span>
-                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">${processedFunds.toLocaleString()}</span>
+                      <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Total Processed (ETH)</span>
+                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">ETH   {processedFunds.toLocaleString()}</span>
                     </div>
                     <div className="w-11 h-11 rounded-2xl bg-trust-blue-light text-trust-blue flex items-center justify-center shadow-sm">
                       <Wallet size={18} />
@@ -1105,7 +1105,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   {/* Blockchain network audit status */}
-                  <div className="md:col-span-7 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm justify-between">
+                  {/* <div className="md:col-span-7 bg-white rounded-3xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm justify-between">
                     <div>
                       <h4 className="font-heading font-extrabold text-sm text-slate-900">Etherscan Sync Audit Terminal</h4>
                       <p className="text-[10px] text-slate-400 mt-1">Real-time status updates verifying client side synchronization with decentralized IPFS blocks.</p>
@@ -1121,7 +1121,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="text-slate-500">[LOG] Total transaction rows synced from IPFS gateways: {transactions.length} rows</div>
                       <div className="text-slate-400">[METADATA] gasUsed: 421098 gwei | blocksAhead: 0</div>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
               </motion.div>

@@ -23,11 +23,6 @@ router.get('/', getCampaigns);
 // Private route: Create a campaign (Only NGO role)
 router.post('/', verifyToken, upload.single('file'), checkRole(['NGO', 'Admin']), createCampaign);
 
-// CRITICAL ROUTE PRIORITY: 
-// Place the specific admin approval route BEFORE any generic /:id route 
-// to prevent Express from misinterpreting "approve" as a parameter.
-//router.put('/:id/approve', verifyToken, checkRole(['Admin']), approveCampaign)
-
 // Public route: Retrieve campaign details by ID
 router.get('/:id', getCampaignById);
 

@@ -34,19 +34,19 @@ exports.uploadFileToIPFS = async (file) => {
 
         // Clean up local temp file if multer saved it to disk
         if (file.path && fs.existsSync(file.path)) {
-            try { fs.unlinkSync(file.path); } catch (e) {}
+            try { fs.unlinkSync(file.path); } catch (e) { }
         }
 
         // Return the unique IPFS hash (CID)
         return res.data.IpfsHash;
     } catch (error) {
         if (file && file.path && fs.existsSync(file.path)) {
-            try { fs.unlinkSync(file.path); } catch (e) {}
+            try { fs.unlinkSync(file.path); } catch (e) { }
         }
-        console.warn('⚠️ IPFS Pinata Upload Warning/Timeout:', error.response?.data || error.message);
+        console.warn('IPFS Pinata Upload Warning/Timeout:', error.response?.data || error.message);
         // Fallback to IPFS CID hash if remote Pinata API times out
         const fallbackHash = 'Qm' + Array.from({ length: 44 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        console.log('✅ Generated IPFS document CID fallback:', fallbackHash);
+        console.log('Generated IPFS document CID fallback:', fallbackHash);
         return fallbackHash;
     }
 };

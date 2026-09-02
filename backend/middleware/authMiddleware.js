@@ -18,7 +18,7 @@ const verifyToken = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
 
       // 3. Verify JWT token using secret key
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'chaintrust_secret');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // 4. Attach the decoded user payload to req.user (e.g., req.user = decoded)
       req.user = decoded;
@@ -84,7 +84,7 @@ const checkRole = (roles) => {
         message: `Access denied: User role '${req.user.role}' is not authorized to access this route`,
       });
     }
-    
+
     return next();
   };
 };
