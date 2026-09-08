@@ -36,7 +36,7 @@ exports.createCampaign = async (req, res) => {
       coverImageIPFSHash,
       ngoId: req.user.id,
       status: req.user.isVerified ? 'Active' : 'Pending',
-      category: category || 'Education'
+      category: category || ''
     });
 
     const savedCampaign = await newCampaign.save();
