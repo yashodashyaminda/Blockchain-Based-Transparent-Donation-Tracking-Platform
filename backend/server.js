@@ -28,7 +28,7 @@ app.use(mongoSanitize());
 
 // Rate Limiter
 const limiter = rateLimit({
-  max: 100, // එක IP එකකින් පැයකට යවන්න පුළුවන් උපරිම රික්වෙස්ට් ගාණ
+  max: 5000, // එක IP එකකින් පැයකට යවන්න පුළුවන් උපරිම රික්වෙස්ට් ගාණ (Increased for Dev)
   windowMs: 60 * 60 * 1000, // පැය 1යි
   message: 'Too many requests from this IP, please try again in an hour!'
 });

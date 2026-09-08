@@ -117,6 +117,15 @@ const listenToBlockchainEvents = () => {
             }
         });
 
+        contract.on("MilestonePayoutReleased", async (campaignIdBigInt, phaseIndex, ngoWallet, amountReleased, feeDeducted, event) => {
+            try {
+                console.log(`🏦 Milestone Payout Event Detected! Hash: ${event.log.transactionHash}`);
+                // Status update logic is handled by FundsReleased or REST API
+            } catch (error) {
+                console.error('❌ Error processing MilestonePayoutReleased event:', error);
+            }
+        });
+
     } catch (error) {
         // Fallback 
         console.log(`⚠️ Could not connect to Blockchain. Running Backend in Web2-only mode!`);
