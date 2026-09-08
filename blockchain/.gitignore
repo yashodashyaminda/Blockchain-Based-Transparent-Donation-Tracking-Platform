@@ -1,0 +1,19 @@
+# Node
+node_modules/
+
+# Environment Variables (Security)
+.env
+.env.*
+
+# Hardhat generated files
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# Solidity coverage reports
+coverage/
+coverage.json
+
+# OS generated files
+.DS_Store
