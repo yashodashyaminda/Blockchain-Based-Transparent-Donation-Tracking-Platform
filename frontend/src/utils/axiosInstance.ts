@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Create Axios instance with API base URL pointing to the Node.js/Express backend
+// Create Axios instance with API base URL pointing to the Node.js/Express backend via .env
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

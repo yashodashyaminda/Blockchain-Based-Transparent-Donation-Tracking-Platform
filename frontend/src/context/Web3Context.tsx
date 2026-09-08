@@ -52,7 +52,6 @@ export interface Transaction {
 export type UserRole = 'guest' | 'donor' | 'ngo' | 'admin';
 
 export interface Web3ContextType {
-  // Wallet
   isWalletConnected: boolean;
   walletAddress: string;
   walletBalance: string;
@@ -61,7 +60,6 @@ export interface Web3ContextType {
   bindWalletToProfile: (customAddr?: string) => Promise<string | null>;
   refreshBalance: (addr?: string) => Promise<string>;
 
-  // Auth/Roles (Web2.5)
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
   activeNgoId: string | null;
@@ -73,12 +71,10 @@ export interface Web3ContextType {
   registerDonorUser: (data: { name: string; email: string; password?: string }) => void;
   registerNgoUser: (data: { name: string; registrationNumber: string; contactInfo?: string; email: string; password?: string; documentName: string; documentUrl: string }) => void;
 
-  // NGO Data & Management
   ngos: NGO[];
   registerNGO: (name: string, email: string, regId: string, docName: string, docDataUrl: string) => void;
   verifyNGO: (id: string, approve: boolean) => void;
 
-  // Campaigns & Donations
   campaigns: Campaign[];
   addCampaign: (name: string, category: Campaign['category'], description: string, image: string, target: number) => void;
   deleteCampaign: (id: string) => void;
@@ -86,14 +82,11 @@ export interface Web3ContextType {
   donateToCampaign: (campaignId: string, amount: number) => Promise<{ success: boolean; hash?: string; error?: string }>;
   estimateDonationGasFee: (campaignId: string, amountEth: number) => Promise<string>;
 
-  // Milestones & Proofs
   addMilestoneProof: (campaignId: string, milestoneId: string, proofText: string, proofDocName: string) => void;
   validateMilestoneProof: (campaignId: string, milestoneId: string, phaseIndex: number, ngoWallet: string, amountEth: number) => Promise<string | undefined>;
 
-  // Transaction Ledger
   transactions: Transaction[];
 
-  // Helpers
   resetState: () => void;
   refreshCampaigns: () => Promise<void>;
   refreshTransactions: (walletAddress?: string) => Promise<void>;
@@ -101,15 +94,19 @@ export interface Web3ContextType {
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
-// Helper function to request MetaMask network switch to Hardhat Localhost (127.0.0.1:8545)
-export const ensureHardhatNetwork = async (): Promise<boolean> => {
+// Helper function to request MetaMask network switch dynamically via .env
+export const ensureTargetNetwork = async (): Promise<boolean> => {
   if (typeof window === 'undefined' || !(window as any).ethereum) return false;
   const ethereum = (window as any).ethereum;
-  const targetChainIdHex = '0x539'; // 1337 in hex
+  
+  // Data from .env file
+  const targetChainIdHex = import.meta.env.VITE_TARGET_CHAIN_ID_HEX;
+  const targetNetworkName = import.meta.env.VITE_NETWORK_NAME;
+  const targetRpcUrl = import.meta.env.VITE_RPC_URL;
 
   try {
     const currentChain = await ethereum.request({ method: 'eth_chainId' });
-    if (currentChain === targetChainIdHex || currentChain === '0x7a69') {
+    if (currentChain === targetChainIdHex) {
       return true;
     }
 
@@ -127,10 +124,10 @@ export const ensureHardhatNetwork = async (): Promise<boolean> => {
             params: [
               {
                 chainId: targetChainIdHex,
-                chainName: 'Hardhat Localhost 8545',
-                rpcUrls: ['http://127.0.0.1:8545/'],
+                chainName: targetNetworkName,
+                rpcUrls: [targetRpcUrl],
                 nativeCurrency: {
-                  name: 'Test ETH',
+                  name: 'Ethereum',
                   symbol: 'ETH',
                   decimals: 18,
                 },
@@ -149,13 +146,11 @@ export const ensureHardhatNetwork = async (): Promise<boolean> => {
   return false;
 };
 
-// All Initial Data Set to Empty Arrays
 const initialNGOs: NGO[] = [];
 const initialCampaigns: Campaign[] = [];
 const initialTransactions: Transaction[] = [];
 
 export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Wallet state
   const [isWalletConnected, setIsWalletConnected] = useState<boolean>(() => {
     return localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
   });
@@ -166,7 +161,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     return localStorage.getItem('wallet_balance') || '0';
   });
 
-  // Auth states
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     return (localStorage.getItem('user_role') as UserRole) || 'guest';
   });
@@ -178,7 +172,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Main collections
   const [ngos, setNgos] = useState<NGO[]>(() => {
     const saved = localStorage.getItem('ngo_registry');
     return saved ? JSON.parse(saved) : initialNGOs;
@@ -212,7 +205,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let balanceWei = 0n;
 
-    // 1. Try BrowserProvider (MetaMask)
     if (typeof window !== 'undefined' && (window as any).ethereum) {
       try {
         const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -222,16 +214,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 2. If BrowserProvider returned 0 Wei or failed, check local Hardhat node (http://127.0.0.1:8545)
     if (balanceWei === 0n) {
       try {
-        const localProvider = new ethers.JsonRpcProvider('http://127.0.0.1:8545');
-        const localBal = await localProvider.getBalance(target);
-        if (localBal > 0n) {
-          balanceWei = localBal;
+        const targetRpcUrl = import.meta.env.VITE_RPC_URL;
+        if (targetRpcUrl) {
+            const fallbackProvider = new ethers.JsonRpcProvider(targetRpcUrl);
+            const fallbackBal = await fallbackProvider.getBalance(target);
+            if (fallbackBal > 0n) {
+            balanceWei = fallbackBal;
+            }
         }
-      } catch (localErr) {
-        // Local node not active
+      } catch (fallbackErr) {
+        // Fallback node not active
       }
     }
 
@@ -247,7 +241,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         const mapped = response.data.data.map((c: any) => ({
           id: c._id,
           name: c.title,
-          category: c.category || 'Education',
+          category: c.category ,
           description: c.description,
           image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
           target: c.targetAmount || 0,
@@ -301,7 +295,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshTransactions();
   }, [refreshCampaigns, refreshTransactions]);
 
-  // Auto check connected account on load ONLY if explicitly connected wallet previously
   useEffect(() => {
     const checkInitialConnection = async () => {
       const isExplicitlyConnected = localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
@@ -337,7 +330,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     checkInitialConnection();
   }, []);
-  // Handle MetaMask events (accountsChanged, chainChanged)
+
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
       const ethereum = (window as any).ethereum;
@@ -388,7 +381,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Sync state with LocalStorage
   useEffect(() => {
     localStorage.setItem('wallet_connected', String(isWalletConnected));
     localStorage.setItem('isWalletConnected', String(isWalletConnected));
@@ -407,7 +399,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('transaction_registry', JSON.stringify(transactions));
   }, [isWalletConnected, walletAddress, walletBalance, currentRole, activeNgoId, donorProfile, ngos, campaigns, transactions]);
 
-  // Web3 Connect Wallet via MetaMask
   const connectWallet = useCallback(async (): Promise<string | null> => {
     const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : undefined;
 
@@ -417,14 +408,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Auto-switch MetaMask to Hardhat Localhost 8545 network if connected to mainnet/other chains
-      await ensureHardhatNetwork();
+      await ensureTargetNetwork();
 
       let accounts: string[] = [];
       try {
         accounts = await ethereum.request({ method: 'eth_requestAccounts' });
       } catch (permErr: any) {
-        // If user explicitly rejected or closed the connection popup (code 4001), abort immediately!
         if (permErr?.code === 4001 || permErr?.message?.includes('rejected')) {
           console.log('User cancelled or closed MetaMask connection popup.');
           return null;
@@ -670,10 +659,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // 🚀 Estimate Gas Fee for Donation
   const estimateDonationGasFee = async (campaignId: string, amountEth: number): Promise<string> => {
     if (!isWalletConnected || !walletAddress || !CONTRACT_ADDRESS || typeof window === 'undefined' || !(window as any).ethereum) {
-      return '0.00021'; // Default fallback
+      return '0.00021';
     }
 
     try {
@@ -700,13 +688,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const gasLimit = await contract.donate.estimateGas(numericCampaignId, { value: valueWei });
       const feeData = await provider.getFeeData();
 
-      // MetaMask typically uses maxFeePerGas for its upper bound network fee estimate
       const effectiveGasPrice = feeData.maxFeePerGas || feeData.gasPrice || ethers.parseUnits('1.5', 'gwei');
-
-      // MetaMask often pads the gasLimit slightly for safety
       const paddedGasLimit = (gasLimit * 115n) / 100n;
-
       const estimatedFeeWei = paddedGasLimit * effectiveGasPrice;
+      
       return parseFloat(ethers.formatEther(estimatedFeeWei)).toFixed(6);
     } catch (error) {
       console.warn('Dynamic gas estimation failed, returning default:', error);
@@ -714,7 +699,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 🚀 Real Smart Contract Execution (Ethers.js v6)
   const donateToCampaign = async (campaignId: string, amountEth: number): Promise<{ success: boolean; hash?: string; error?: string }> => {
     if (!isWalletConnected || !walletAddress) {
       return { success: false, error: 'Wallet is not connected. Please connect MetaMask.' };
@@ -729,13 +713,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Auto-switch MetaMask to Hardhat Localhost 8545 network before transaction execution
-      await ensureHardhatNetwork();
+      await ensureTargetNetwork();
 
       const campaign = campaigns.find(c => c.id === campaignId);
       if (!campaign) return { success: false, error: 'Campaign not found' };
 
-      // 1. Convert MongoDB 24-char hex ObjectId to uint256 BigInt
       let numericCampaignId: bigint;
       const cleanHex = campaignId.replace(/[^0-9a-fA-F]/g, '');
       if (cleanHex.length >= 24) {
@@ -750,15 +732,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         numericCampaignId = BigInt("0x" + hexStr.slice(0, 24).padStart(24, '0'));
       }
 
-      // 2. Initialize Signer
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
 
-      // 3. Instantiate Contract Instance
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
       const valueWei = ethers.parseEther(amountEth.toString());
 
-      // 4. Gas limit fallback to ensure contract execution succeeds
       let gasLimit: bigint;
       try {
         gasLimit = await contract.donate.estimateGas(numericCampaignId, { value: valueWei });
@@ -767,7 +746,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         gasLimit = 350000n;
       }
 
-      // 5. Explicitly invoke contract.donate(uint256)
       const tx = await contract.donate(numericCampaignId, {
         value: valueWei,
         gasLimit: gasLimit
@@ -775,12 +753,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Transaction broadcasted successfully:', tx.hash);
 
-      // 6. Wait for block mining
       const receipt = await tx.wait();
       const txHash = receipt?.hash || tx.hash;
       const dateStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-      // Update local campaign raised state
       setCampaigns(prev =>
         prev.map(c => {
           if (c.id === campaignId) {
@@ -802,7 +778,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setTransactions(prev => [newTx, ...prev]);
 
-      // Sync with MongoDB backend
       try {
         await axiosInstance.post('/donations', {
           campaignId: campaignId,
@@ -814,7 +789,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Backend REST sync notice:', backendErr);
       }
 
-      // Refresh balances, campaigns, and transaction ledger strictly for active wallet
       await refreshBalance(walletAddress);
       await refreshCampaigns();
       await refreshTransactions(walletAddress);
@@ -857,9 +831,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const isCorrectNetwork = await ensureHardhatNetwork();
+      const isCorrectNetwork = await ensureTargetNetwork();
       if (!isCorrectNetwork) {
-        throw new Error("Please switch MetaMask to the local Hardhat network (1337).");
+        throw new Error("Please switch MetaMask to the correct target network.");
       }
 
       if (typeof window === 'undefined' || !(window as any).ethereum) {
