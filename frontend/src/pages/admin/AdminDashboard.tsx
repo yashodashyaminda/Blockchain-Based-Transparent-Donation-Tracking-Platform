@@ -899,16 +899,7 @@ export const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {loadingCampaigns ? (
-                        <tr>
-                          <td colSpan={4} className="px-5 py-8 text-center text-slate-400">
-                            <div className="flex flex-col items-center justify-center gap-2">
-                              <RefreshCw size={20} className="animate-spin text-purple-600" />
-                              <span>Loading campaigns...</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : allCampaigns.length === 0 ? (
+                      {allCampaigns.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="px-5 py-8 text-center text-slate-400">
                             No campaigns found
