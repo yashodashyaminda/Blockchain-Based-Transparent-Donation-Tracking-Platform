@@ -1,15 +1,16 @@
+// 1. Load environment variables FIRST (අනිවාර්යයෙන්ම මේක මුලින්ම තියෙන්න ඕන)
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
-const connectDB = require('./config/db');
-const { listenToBlockchainEvents } = require('./services/web3Service'); // උඩට ගත්තා
 
-// 1. Load environment variables from .env file
-dotenv.config();
+// දැන් මේ ෆයිල් ලෝඩ් වෙද්දී .env එකේ Data (MONGO_URI, Alchemy Links) ඇවිල්ලා ඉවරයි
+const connectDB = require('./config/db');
+const { listenToBlockchainEvents } = require('./services/web3Service');
 
 // 2. Connect to MongoDB database
 connectDB();
@@ -21,11 +22,11 @@ const app = express();
 app.use(helmet());
 app.use(cors()); // Allow cross-origin requests from front-end applications
 
-// Body parser with size limit (මුලට ගත්තා)
+// Body parser with size limit
 app.use(express.json({ limit: '10kb' })); 
 app.use(mongoSanitize());
 
-// Rate Limiter (මුලට ගත්තා)
+// Rate Limiter
 const limiter = rateLimit({
   max: 100, // එක IP එකකින් පැයකට යවන්න පුළුවන් උපරිම රික්වෙස්ට් ගාණ
   windowMs: 60 * 60 * 1000, // පැය 1යි
