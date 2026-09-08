@@ -245,7 +245,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           description: c.description,
           image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
           target: c.targetAmount || 0,
-          raised: c.raisedAmount || 0,
+          raised: parseFloat(Number(c.raisedAmount || 0).toFixed(4)),
           ngoId: c.ngoId?._id || c.ngoId,
           ngoName: c.ngoId?.name || 'Verified NGO',
           milestones: c.milestones || [],
@@ -660,8 +660,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const estimateDonationGasFee = async (campaignId: string, amountEth: number): Promise<string> => {
+    if (amountEth <= 0) return '0.000000';
     if (!isWalletConnected || !walletAddress || !CONTRACT_ADDRESS || typeof window === 'undefined' || !(window as any).ethereum) {
-      return '0.00021';
+      return '0.000000';
     }
 
     try {
@@ -695,7 +696,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       return parseFloat(ethers.formatEther(estimatedFeeWei)).toFixed(6);
     } catch (error) {
       console.warn('Dynamic gas estimation failed, returning default:', error);
-      return '0.00021';
+      return '0.000000';
     }
   };
 
@@ -760,7 +761,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       setCampaigns(prev =>
         prev.map(c => {
           if (c.id === campaignId) {
-            return { ...c, raised: c.raised + amountEth };
+            return { ...c, raised: parseFloat(Number(c.raised + amountEth).toFixed(4)) };
           }
           return c;
         })

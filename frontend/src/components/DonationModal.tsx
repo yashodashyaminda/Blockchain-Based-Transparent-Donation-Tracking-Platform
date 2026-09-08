@@ -44,8 +44,10 @@ export const DonationModal: React.FC<DonationModalProps> = ({ selectedCampaign, 
     const updateGasFee = async () => {
       if (!selectedCampaign || !isWalletConnected || !walletAddress) return;
       const numAmount = parseFloat(donationAmount) || 0;
-      if (numAmount <= 0) return;
-      
+      if (numAmount <= 0) {
+        if (isMounted) setEstimatedGasFee('0.000000');
+        return;
+      }
       setIsEstimatingGas(true);
       const fee = await estimateDonationGasFee(selectedCampaign.id, numAmount);
       if (isMounted) {

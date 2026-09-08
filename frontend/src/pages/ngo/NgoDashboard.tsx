@@ -27,7 +27,7 @@ export const NgoDashboard: React.FC = () => {
           description: c.description,
           image: c.coverImageIPFSHash ? `https://gateway.pinata.cloud/ipfs/${c.coverImageIPFSHash}` : '/assets/images/4.png',
           target: c.targetAmount || 0,
-          raised: c.raisedAmount || 0,
+          raised: parseFloat(Number(c.raisedAmount || 0).toFixed(4)),
           ngoId: c.ngoId?._id || c.ngoId,
           ngoName: c.ngoId?.name || 'Verified NGO',
           milestones: c.milestones || [],
