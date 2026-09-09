@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../context/Web3Context';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Home, LogIn, LogOut } from 'lucide-react';
+import { LayoutDashboard, Home, LogIn, LogOut, Menu, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface NavbarProps {
   activePage: string;
@@ -13,6 +14,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
   const { logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('hero');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Force active dark scrolled navbar layout on login and register pages immediately
   const isNavbarDark = isScrolled || activePage === 'login' || activePage === 'register';
@@ -65,6 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
 
   // Smooth scroll handler helper
   const scrollToSection = (sectionId: string) => {
+    setIsMobileMenuOpen(false);
     setActivePage('home');
     setActiveSection(sectionId);
 
@@ -191,8 +194,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
         </button>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-3">
+      
+      {/* Mobile Hamburger Button */}
+      <div className="lg:hidden flex items-center">
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className={`p-2 rounded-xl transition-colors ${isNavbarDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-800 hover:bg-slate-100'}`}
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* Desktop Action Buttons */}
+      <div className="hidden lg:flex items-center gap-3">
+
         {/* Workspace Link if logged in */}
         {currentRole !== 'guest' && (
           <button
@@ -269,6 +284,98 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage }) => 
           </div>
         )}
       </div>
+    
+      {/* Mobile Menu Drawer */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] lg:hidden"
+            />
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-slate-950 border-l border-slate-800 z-[101] shadow-2xl flex flex-col p-6 lg:hidden"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <span className="font-heading font-bold text-lg text-white">Menu</span>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-4 flex-1">
+                {['hero', 'goal', 'about', 'campaigns', 'contact'].map((section) => (
+                  <button
+                    key={section}
+                    onClick={() => scrollToSection(section)}
+                    className={`text-left text-lg font-medium px-4 py-3 rounded-xl transition-colors ${
+                      activeSection === section ? 'bg-blue-600/10 text-blue-400' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {section === 'hero' ? 'Home' : section.charAt(0).toUpperCase() + section.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Mobile Auth Controls */}
+              <div className="mt-auto pt-6 border-t border-slate-800 flex flex-col gap-3">
+                {currentRole !== 'guest' ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        if (currentRole === 'admin') setActivePage('admin-dashboard');
+                        else if (currentRole === 'ngo') setActivePage('ngo-dashboard');
+                        else setActivePage('donor-dashboard');
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold bg-slate-800 text-slate-100 hover:bg-slate-700"
+                    >
+                      <LayoutDashboard size={18} />
+                      <span>Workspace</span>
+                    </button>
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }}
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold border border-slate-700 text-slate-300 hover:bg-slate-800"
+                    >
+                      <LogOut size={18} />
+                      <span>Logout</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); setActivePage('login'); }}
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold bg-slate-800 text-slate-100 hover:bg-slate-700"
+                    >
+                      <LogIn size={18} />
+                      <span>Login</span>
+                    </button>
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); setActivePage('register'); }}
+                      className="flex items-center justify-center px-4 py-3 rounded-xl font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                    >
+                      <span>Register</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </nav>
+
   );
 };

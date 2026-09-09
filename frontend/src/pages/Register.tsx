@@ -1,3 +1,4 @@
+import { useUI } from '../context/UIContext';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../context/Web3Context';
@@ -11,6 +12,7 @@ interface RegisterProps {
 }
 
 export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
+  const { showToast } = useUI();
   const { login } = useAuth();
   const { walletAddress } = useWeb3();
   const [selectedRole, setSelectedRole] = useState<'donor' | 'ngo'>('donor');
@@ -52,7 +54,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       if (file.size > 1024 * 1024) {
-        alert('Verification document size must not exceed 1MB. Please select a smaller file.');
+        showToast('Verification document size must not exceed 1MB. Please select a smaller file.', 'info');
         return;
       }
       setSelectedFile(file);
@@ -65,7 +67,7 @@ export const Register: React.FC<RegisterProps> = ({ setActivePage }) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (file.size > 1024 * 1024) {
-        alert('Verification document size must not exceed 1MB. Please select a smaller file.');
+        showToast('Verification document size must not exceed 1MB. Please select a smaller file.', 'info');
         e.target.value = '';
         return;
       }

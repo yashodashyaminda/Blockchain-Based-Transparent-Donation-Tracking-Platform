@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
+import { useUI } from './UIContext';
 import axiosInstance from '../utils/axiosInstance';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../config/contractConfig';
 
@@ -151,6 +152,7 @@ const initialCampaigns: Campaign[] = [];
 const initialTransactions: Transaction[] = [];
 
 export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { showToast } = useUI();
   const [isWalletConnected, setIsWalletConnected] = useState<boolean>(() => {
     return localStorage.getItem('wallet_connected') === 'true' || localStorage.getItem('isWalletConnected') === 'true';
   });
@@ -403,7 +405,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : undefined;
 
     if (!ethereum) {
-      alert('MetaMask browser extension is not installed! Please install MetaMask extension in your browser to connect.');
+      showToast('MetaMask browser extension is not installed! Please install MetaMask extension in your browser to connect.', 'info');
       return null;
     }
 
@@ -460,9 +462,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.error('User rejected or failed wallet connection:', err);
       if (err?.code === -32002) {
-        alert('MetaMask is already processing a connection request! Please open your MetaMask browser extension popup to approve the pending connection.');
+        showToast('MetaMask is already processing a connection request! Please open your MetaMask browser extension popup to approve the pending connection.', 'info');
       } else if (err?.code !== 4001) {
-        alert(`MetaMask connection error: ${err?.message || 'Connection failed'}`);
+        showToast(`MetaMask connection error: ${err?.message || 'Connection failed'}`, 'error');
       }
     }
     return null;

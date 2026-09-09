@@ -55,7 +55,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick, onG
   return (
     <section id="hero" className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-white pt-28 pb-24">
       {/* Autoplay Fullscreen Video with Parallax Scroll */}
-      <motion.div 
+      <motion.div
         style={{ y: videoY, scale }}
         className="absolute inset-0 w-full h-full"
       >
@@ -75,7 +75,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick, onG
       </motion.div>
 
       {/* Main Hero Content */}
-      <motion.div 
+      <motion.div
         style={{ opacity }}
         className="relative z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center gap-6 mt-16 md:mt-24"
       >
@@ -94,16 +94,16 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick, onG
 
         {/* Cinematic Heading Text */}
         <div className="overflow-hidden py-2">
-          <motion.h1 
+          <motion.h1
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="font-heading font-extrabold text-3xl md:text-5xl lg:text-6xl tracking-tighter leading-none text-slate-900"
+            className="font-heading font-extrabold text-[1.75rem] sm:text-4xl md:text-5xl lg:text-6xl tracking-tighter leading-[1.1] text-slate-900"
           >
             {/* Row 1 */}
             <span className="block mb-2 overflow-hidden">
               {line1.split(" ").map((word, i) => (
-                <span key={i} className="inline-block mr-4 overflow-hidden">
+                <span key={i} className="inline-block mr-2 md:mr-4 overflow-hidden">
                   {word.split("").map((char, index) => (
                     <motion.span
                       key={index}
@@ -120,7 +120,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick, onG
             {/* Row 2 */}
             <span className="block text-trust-blue overflow-hidden">
               {line2.split(" ").map((word, i) => (
-                <span key={i} className="inline-block mr-4 overflow-hidden">
+                <span key={i} className="inline-block mr-2 md:mr-4 overflow-hidden">
                   {word.split("").map((char, index) => (
                     <motion.span
                       key={index}
@@ -175,7 +175,7 @@ export const CinematicHero: React.FC<CinematicHeroProps> = ({ onDonateClick, onG
       </motion.div>
 
       {/* Bouncing Scroll Indicator */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.7 }}
         transition={{ delay: 1.8 }}

@@ -5,8 +5,13 @@ import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../utils/axiosInstance';
 import type { Campaign } from '../../context/Web3Context';
 import { ShieldCheck, Users, Wallet, BarChart3, Edit3, Trash2, CheckCircle2, FileSearch, ArrowRight, ShieldAlert, Plus, AlertCircle, RefreshCw, Building, Phone, Mail, FileText } from 'lucide-react';
+import { ethers } from 'ethers';
+import { useUI } from '../../context/UIContext';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../../config/contractConfig';
 
 export const AdminDashboard: React.FC = () => {
+  const { showToast, showConfirm, showPrompt } = useUI();
+
   const { verifyNGO, validateMilestoneProof, isWalletConnected, walletAddress, connectWallet, disconnectWallet } = useWeb3();
   const { user } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'crud' | 'metrics'>('approvals');
@@ -17,7 +22,6 @@ export const AdminDashboard: React.FC = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [allCampaigns, setAllCampaigns] = useState<any[]>([]);
-  const [loadingCampaigns, setLoadingCampaigns] = useState<boolean>(false);
 
   // NGO Review states
   const [selectedNgoId, setSelectedNgoId] = useState<string>('');
@@ -44,27 +48,71 @@ export const AdminDashboard: React.FC = () => {
 
   // Simulated metrics counters
   const [processedFunds, setProcessedFunds] = useState(0);
+  const [releasedFunds, setReleasedFunds] = useState(0);
+  const [availableFunds, setAvailableFunds] = useState(0);
+  const [totalReleasedRaw, setTotalReleasedRaw] = useState(0);
   const [activeUsers, setActiveUsers] = useState(0);
   const [verifiedNgosCount, setVerifiedNgosCount] = useState(0);
   const [donationCount, setDonationCount] = useState(0);
 
   useEffect(() => {
-    // Sum total target/raises for metrics
-    const totalRaised = campaigns.reduce((acc, c) => acc + c.raised, 0);
     const totalUsers = verifiedNgosCount;
     const totalTx = transactions.length;
+    let rInterval: NodeJS.Timeout;
 
-    // Animate counters
-    let rStart = 0;
-    const rInterval = setInterval(() => {
-      rStart += Math.ceil(totalRaised / 20);
-      if (rStart >= totalRaised) {
-        setProcessedFunds(totalRaised);
-        clearInterval(rInterval);
-      } else {
-        setProcessedFunds(rStart);
+    const fetchRealBalanceAndAnimate = async () => {
+      // Sum total target/raises for metrics
+      const totalRaised = campaigns.reduce((acc, c) => acc + c.raised, 0);
+      let totalReleased = totalReleasedRaw;
+      let totalAvailable = 0;
+      
+      try {
+        if (typeof window !== 'undefined' && (window as any).ethereum && CONTRACT_ADDRESS) {
+          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+          
+          // Fetch Smart Contract Available Balance
+          const balanceWei = await provider.getBalance(CONTRACT_ADDRESS);
+          totalAvailable = parseFloat(ethers.formatEther(balanceWei));
+          console.log(`Smart Contract එකේ දැනට තියෙන ගාණ: ${totalAvailable} ETH`);
+          
+          // Fetch Total Released
+          const totalReleasedWei = await contract.totalReleased();
+          totalReleased = parseFloat(ethers.formatEther(totalReleasedWei));
+          console.log(`Blockchain එකෙන් ගත්තු Total Released ගාණ: ${totalReleased} ETH`);
+        } else {
+          totalAvailable = Math.max(0, totalRaised - totalReleasedRaw);
+        }
+      } catch (error) {
+        console.error("Balance එක ගන්න බැරි වුණා:", error);
+        totalAvailable = Math.max(0, totalRaised - totalReleasedRaw);
       }
-    }, 40);
+
+      // Animate counters
+      let rStart = 0;
+      let relStart = 0;
+      let avStart = 0;
+      
+      rInterval = setInterval(() => {
+        let isDone = true;
+        
+        rStart += Math.ceil(totalRaised / 20) || 0.1;
+        if (rStart >= totalRaised) setProcessedFunds(totalRaised);
+        else { setProcessedFunds(rStart); isDone = false; }
+        
+        relStart += Math.ceil(totalReleased / 20) || 0.1;
+        if (relStart >= totalReleased) setReleasedFunds(totalReleased);
+        else { setReleasedFunds(relStart); isDone = false; }
+        
+        avStart += Math.ceil(totalAvailable / 20) || 0.1;
+        if (avStart >= totalAvailable) setAvailableFunds(totalAvailable);
+        else { setAvailableFunds(avStart); isDone = false; }
+        
+        if (isDone) clearInterval(rInterval);
+      }, 40);
+    };
+
+    fetchRealBalanceAndAnimate();
 
     let uStart = 0;
     const uInterval = setInterval(() => {
@@ -135,14 +183,18 @@ export const AdminDashboard: React.FC = () => {
       try {
         const proofsResponse = await axiosInstance.get('/proofs');
         if (proofsResponse.data && proofsResponse.data.success) {
-          setPendingProofs(proofsResponse.data.data.filter((p: any) => !p.isApproved));
+          const allProofs = proofsResponse.data.data;
+          setPendingProofs(allProofs.filter((p: any) => !p.isApproved));
+          const released = allProofs
+            .filter((p: any) => p.isApproved)
+            .reduce((acc: number, p: any) => acc + (p.amountRequested || 0), 0);
+          setTotalReleasedRaw(released);
         }
       } catch (err: any) {
         console.error('Failed to fetch proofs:', err);
       }
 
       // 3. Fetch all campaigns
-      setLoadingCampaigns(true);
       try {
         const campaignsResponse = await axiosInstance.get('/campaigns');
         if (campaignsResponse.data && campaignsResponse.data.success) {
@@ -163,8 +215,6 @@ export const AdminDashboard: React.FC = () => {
         }
       } catch (campaignErr) {
         console.error('Failed to fetch campaigns inside AdminDashboard:', campaignErr);
-      } finally {
-        setLoadingCampaigns(false);
       }
 
       // 4. Fetch all donations/transactions
@@ -204,17 +254,17 @@ export const AdminDashboard: React.FC = () => {
         await axiosInstance.put(`/auth/verify-ngo/${id}`);
         // Notify mock local context also
         verifyNGO(id, true);
-        alert('NGO verified and approved successfully!');
+        showToast('NGO verified and approved successfully!', 'info');
       } else {
         await axiosInstance.put(`/auth/reject-ngo/${id}`);
-        alert('NGO registration was rejected.');
+        showToast('NGO registration was rejected.', 'info');
       }
 
       // Remove from list
       setPendingNgos(prev => prev.filter(n => n.id !== id));
       setSelectedNgoId('');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Action failed');
+      showToast(err.response?.data?.message || 'Action failed', 'error');
     }
   };
 
@@ -282,25 +332,24 @@ export const AdminDashboard: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       setIsContractExecuting(false);
-      alert(err.response?.data?.message || err.message || 'Failed to approve milestone proof');
+      showToast(err.response?.data?.message || err.message || 'Failed to approve milestone proof', 'error');
     }
   };
 
   // Reject milestone proof
   const handleRejectMilestone = async (milestoneId: string) => {
-    const reason = window.prompt(
-      'Enter the reason for rejecting this milestone proof:',
-      'Compliance document details did not satisfy audit requirements.'
+    const reason = await showPrompt(
+      'Enter the reason for rejecting this milestone proof:', 'Compliance document details did not satisfy audit requirements.'
     );
     if (reason === null) return; // User cancelled prompt
 
     try {
       await axiosInstance.put(`/proofs/${milestoneId}/reject`, { reason });
-      alert('Milestone proof claim rejected successfully.');
+      showToast('Milestone proof claim rejected successfully.', 'info');
       setPendingProofs(prev => prev.filter(p => p._id !== milestoneId));
       setSelectedProofId('');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to reject milestone proof');
+      showToast(err.response?.data?.message || 'Failed to reject milestone proof', 'error');
     }
   };
 
@@ -342,10 +391,10 @@ export const AdminDashboard: React.FC = () => {
         };
 
         setCampaigns(prev => [...prev, newCampaign]);
-        alert('Campaign created and saved successfully!');
+        showToast('Campaign created and saved successfully!', 'info');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create campaign');
+      showToast(err.response?.data?.message || 'Failed to create campaign', 'error');
     }
 
     setNewProjName('');
@@ -377,26 +426,27 @@ export const AdminDashboard: React.FC = () => {
           target: editTarget,
           category: editCat
         } : c));
-        alert('Campaign updated successfully!');
+        showToast('Campaign updated successfully!', 'info');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update campaign');
+      showToast(err.response?.data?.message || 'Failed to update campaign', 'error');
     }
     setEditingCampaignId(null);
   };
 
   // Delete campaign handler
   const handleDeleteCampaign = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this campaign?')) return;
+    const isConfirmed = await showConfirm('Are you sure you want to delete this campaign?');
+    if (!isConfirmed) return;
     try {
       const response = await axiosInstance.delete(`/campaigns/${id}`);
       if (response.data && response.data.success) {
         setAllCampaigns(prev => prev.filter(c => c._id !== id));
         setCampaigns(prev => prev.filter(c => c.id !== id));
-        alert('Campaign deleted successfully!');
+        showToast('Campaign deleted successfully!', 'info');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete campaign');
+      showToast(err.response?.data?.message || 'Failed to delete campaign', 'error');
     }
   };
 
@@ -1031,9 +1081,33 @@ export const AdminDashboard: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-trust-blue/5 to-transparent pointer-events-none" />
                     <div>
                       <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Total Processed (ETH)</span>
-                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">ETH   {processedFunds.toLocaleString()}</span>
+                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">ETH {processedFunds.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
                     </div>
                     <div className="w-11 h-11 rounded-2xl bg-trust-blue-light text-trust-blue flex items-center justify-center shadow-sm">
+                      <Wallet size={18} />
+                    </div>
+                  </div>
+
+                  {/* Total Released */}
+                  <div className="bg-white rounded-3xl border border-slate-100 p-6 flex items-center justify-between shadow-sm relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent pointer-events-none" />
+                    <div>
+                      <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Total Released (ETH)</span>
+                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">ETH {releasedFunds.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+                      <Wallet size={18} />
+                    </div>
+                  </div>
+
+                  {/* Smart Contract Available */}
+                  <div className="bg-white rounded-3xl border border-slate-100 p-6 flex items-center justify-between shadow-sm relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
+                    <div>
+                      <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">Smart Contract Available (ETH)</span>
+                      <span className="font-heading font-extrabold text-2xl md:text-3xl text-slate-900">ETH {availableFunds.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm">
                       <Wallet size={18} />
                     </div>
                   </div>

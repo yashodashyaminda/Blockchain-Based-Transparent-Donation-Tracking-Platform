@@ -1,3 +1,4 @@
+import { useUI } from '../context/UIContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useWeb3 } from '../context/Web3Context';
@@ -16,6 +17,8 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId }) => {
+  const { showToast } = useUI();
+
   const { currentRole, isWalletConnected, campaigns, refreshCampaigns } = useWeb3();
   const { user } = useAuth();
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
@@ -58,7 +61,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
       .catch((error) => {
         console.error('Failed:', error.text);
         setIsSubmitting(false);
-        alert("Failed to send message. Please check your credentials and try again.");
+        showToast("Failed to send message. Please check your credentials and try again.", 'error');
       });
   };
 
@@ -96,7 +99,7 @@ export const Home: React.FC<HomeProps> = ({ setActivePage, setSelectedCampaignId
     }
 
     if (user.role === 'NGO' || user.role === 'Admin') {
-      alert('Only Donors can contribute to campaigns.');
+      showToast('Only Donors can contribute to campaigns.', 'info');
       return;
     }
   };

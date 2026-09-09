@@ -1,3 +1,4 @@
+import { useUI } from '../../context/UIContext';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeb3 } from '../../context/Web3Context';
@@ -7,6 +8,7 @@ import type { Campaign } from '../../context/Web3Context';
 import { Award, AlertTriangle, AlertCircle, Plus, ShieldCheck, FileText, UploadCloud, CheckCircle, RefreshCw, Wallet } from 'lucide-react';
 
 export const NgoDashboard: React.FC = () => {
+  const { showToast } = useUI();
   const { addMilestoneProof, isWalletConnected, walletAddress, connectWallet, disconnectWallet, refreshCampaigns } = useWeb3();
   const { user, login } = useAuth();
 
@@ -116,12 +118,12 @@ export const NgoDashboard: React.FC = () => {
   const handleAddProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projName || !projDesc || !projTarget) {
-      alert('Please fill out all fields');
+      showToast('Please fill out all fields', 'info');
       return;
     }
 
     if (!campaignFile) {
-      alert('Please upload a cover image file for the campaign proposal');
+      showToast('Please upload a cover image file for the campaign proposal', 'info');
       return;
     }
 
@@ -153,11 +155,11 @@ export const NgoDashboard: React.FC = () => {
         await refreshCampaigns();
         await fetchCampaignsData();
 
-        alert('Campaign Proposal Launched successfully!');
+        showToast('Campaign Proposal Launched successfully!', 'info');
         setTimeout(() => setProjectCreatedSuccess(false), 4000);
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to launch campaign proposal');
+      showToast(err.response?.data?.message || 'Failed to launch campaign proposal', 'error');
     } finally {
       setIsLaunchingCampaign(false);
     }
@@ -261,7 +263,7 @@ export const NgoDashboard: React.FC = () => {
       });
 
       if (response.data && response.data.success) {
-        alert('Document re-submitted successfully. Pending Admin review.');
+        showToast('Document re-submitted successfully. Pending Admin review.', 'info');
         if (user) {
           login(localStorage.getItem('token') || '', {
             ...user,
@@ -271,7 +273,7 @@ export const NgoDashboard: React.FC = () => {
         setResubmitFile(null);
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to re-submit document');
+      showToast(err.response?.data?.message || 'Failed to re-submit document', 'error');
     } finally {
       setIsResubmitting(false);
     }
@@ -309,7 +311,7 @@ export const NgoDashboard: React.FC = () => {
                   if (e.target.files && e.target.files.length > 0) {
                     const file = e.target.files[0];
                     if (file.size > 1024 * 1024) {
-                      alert('Verification document size must not exceed 1MB. Please select a smaller file.');
+                      showToast('Verification document size must not exceed 1MB. Please select a smaller file.', 'info');
                       e.target.value = '';
                       setResubmitFile(null);
                       return;
@@ -559,7 +561,7 @@ export const NgoDashboard: React.FC = () => {
                         if (e.target.files && e.target.files.length > 0) {
                           const file = e.target.files[0];
                           if (file.size > 1024 * 1024) {
-                            alert('Campaign cover image must not exceed 1MB. Please select a smaller file.');
+                            showToast('Campaign cover image must not exceed 1MB. Please select a smaller file.', 'info');
                             e.target.value = '';
                             setCampaignFile(null);
                             setCampaignFileName('');
@@ -933,9 +935,9 @@ export const NgoDashboard: React.FC = () => {
                         try {
                           await axiosInstance.delete(`/proofs/${p._id}`);
                           setNgoProofs(prev => prev.filter(proof => proof._id !== p._id));
-                          alert('Rejection acknowledged. You can now re-submit your proof claim.');
+                          showToast('Rejection acknowledged. You can now re-submit your proof claim.', 'info');
                         } catch (err: any) {
-                          alert(err.response?.data?.message || 'Failed to acknowledge rejection');
+                          showToast(err.response?.data?.message || 'Failed to acknowledge rejection', 'error');
                         }
                       }}
                       className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-heading text-[10px] font-bold uppercase tracking-wider transition-colors duration-200 cursor-pointer shadow-sm text-center"
