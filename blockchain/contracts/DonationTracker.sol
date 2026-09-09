@@ -14,6 +14,9 @@ contract DonationTracker is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // Mapping of campaignId to its locked contract balance
     mapping(uint256 => uint256) public campaignBalances;
 
+    // Total amount of funds (in wei) successfully released to NGOs so far
+    uint256 public totalReleased;
+
     // Events
     event Donated(address indexed donor, uint256 indexed campaignId, uint256 amount);
     event FundsReleased(
@@ -82,6 +85,9 @@ contract DonationTracker is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // 2. Adjust mapping balance before transferring to prevent reentrancy issues
         campaignBalances[campaignId] -= amount;
 
+        // 2.5 Update the total released tracker
+        totalReleased += amount;
+
         // 3. Dispatch 5% fee to the admin/owner wallet
         (bool feeSuccess, ) = payable(owner()).call{value: fee}("");
         require(feeSuccess, "Fee transfer failed");
@@ -110,6 +116,8 @@ contract DonationTracker is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 netAmount = amount - feeDeducted;
 
         campaignBalances[campaignId] -= amount;
+        
+        totalReleased += amount;
 
         (bool feeSuccess, ) = payable(owner()).call{value: feeDeducted}("");
         require(feeSuccess, "Fee transfer failed");
