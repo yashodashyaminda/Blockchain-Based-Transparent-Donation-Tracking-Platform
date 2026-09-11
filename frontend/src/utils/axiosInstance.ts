@@ -22,4 +22,27 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+// Response Interceptor to handle expired JWT tokens (Auto Logout on 401 / 403)
+axiosInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      // Clear all stored session states from localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('wallet_connected');
+      localStorage.removeItem('isWalletConnected');
+
+      // Redirect user back to login page if not already there
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default axiosInstance;
